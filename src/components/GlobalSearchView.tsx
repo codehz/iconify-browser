@@ -14,6 +14,7 @@ import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { GlobalSearchHit, GlobalSearchSelection, CollectionItem } from "../types";
+import { AriaTextField } from "./AriaTextField";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
 import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
 import { renderIconHTML } from "../utils/iconRenderer";
@@ -201,11 +202,11 @@ export function GlobalSearchView({
           <p className="global-search-subtitle">跨全部图标包搜索并直接查看图标详情</p>
         </div>
         <div className="global-search-controls">
-          <input
-            className="global-search-input"
-            onChange={(event) => onQueryChange(event.target.value)}
+          <AriaTextField
+            ariaLabel="在全部图标中搜索"
+            classNamePrefix="global-search"
+            onChange={onQueryChange}
             placeholder="在全部图标中搜索"
-            type="text"
             value={query}
           />
         </div>
@@ -247,13 +248,13 @@ export function GlobalSearchView({
                 </AriaButton>
                 <Popover className="global-search-filter-popover" offset={8} placement="bottom end">
                   <div className="global-search-filter-panel">
-                    <input
-                      ref={filterSearchInputRef}
-                      className="global-search-filter-search"
-                      type="text"
+                    <AriaTextField
+                      ariaLabel="搜索图标包"
+                      classNamePrefix="global-search-filter-search"
+                      inputRef={filterSearchInputRef}
+                      onChange={setFilterSearch}
                       placeholder="搜索图标包..."
                       value={filterSearch}
-                      onChange={(event) => setFilterSearch(event.target.value)}
                     />
                     <ScrollArea className="global-search-filter-list">
                       <ListBox

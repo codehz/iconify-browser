@@ -4,6 +4,7 @@ import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { IconifyJSON } from "@iconify/types";
 import { Button as AriaButton } from "react-aria-components";
+import { AriaTextField } from "./AriaTextField";
 import { AriaSelectComponent, type AriaSelectOption } from "./AriaSelect";
 import { useElementWidth } from "../hooks/useElementWidth";
 import {
@@ -200,12 +201,12 @@ export function IconGrid({
             {collectionPrefix} · {allNames.length} 个图标
           </span>
         </div>
-        <input
-          type="text"
+        <AriaTextField
+          ariaLabel="在当前图标包中搜索"
+          classNamePrefix="icon-grid-search"
+          onChange={onSearchQueryChange}
           placeholder="在当前图标包中搜索"
           value={searchQuery}
-          onChange={(e) => onSearchQueryChange(e.target.value)}
-          className="icon-grid-search-input"
         />
       </div>
       {supportsSuffixPreview || supportsCategoryPreview ? (

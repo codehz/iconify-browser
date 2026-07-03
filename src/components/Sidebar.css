@@ -33,6 +33,11 @@
   flex-shrink: 0;
 }
 
+.sidebar-search-field {
+  display: block;
+  width: 100%;
+}
+
 .sidebar-search-input {
   width: 100%;
   padding: var(--input-padding);
@@ -45,8 +50,10 @@
   box-sizing: border-box;
 }
 
-.sidebar-search-input:focus {
+.sidebar-search-input[data-focused],
+.sidebar-search-input[data-focus-visible] {
   border-color: var(--accent-color);
+  outline: none;
 }
 
 .sidebar-list {

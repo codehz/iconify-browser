@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import type { CollectionItem } from "../types";
+import { AriaTextField } from "./AriaTextField";
 import { ScrollArea } from "./ScrollArea";
 import "./Sidebar.css";
 
@@ -65,12 +66,12 @@ export function Sidebar({
         <span className="sidebar-count">{collections.length}</span>
       </div>
       <div className="sidebar-search">
-        <input
-          type="text"
+        <AriaTextField
+          ariaLabel="筛选图标包"
+          classNamePrefix="sidebar-search"
+          onChange={setSearch}
           placeholder="筛选图标包"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="sidebar-search-input"
         />
       </div>
       <ScrollArea className="sidebar-list">

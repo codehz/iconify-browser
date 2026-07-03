@@ -36,7 +36,13 @@
   white-space: nowrap;
 }
 
+.icon-grid-search-field {
+  min-width: 180px;
+  flex-shrink: 0;
+}
+
 .icon-grid-search-input {
+  width: 100%;
   padding: var(--input-padding);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -44,12 +50,12 @@
   font-size: 13px;
   border-radius: var(--radius-md);
   outline: none;
-  min-width: 180px;
-  flex-shrink: 0;
 }
 
-.icon-grid-search-input:focus {
+.icon-grid-search-input[data-focused],
+.icon-grid-search-input[data-focus-visible] {
   border-color: var(--accent-color);
+  outline: none;
 }
 
 .icon-grid-body {
