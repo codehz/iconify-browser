@@ -167,6 +167,10 @@
   font-weight: 500;
 }
 
+.global-search-filter-item.no-match .global-search-filter-item-name {
+  color: var(--text-tertiary);
+}
+
 .global-search-filter-item-count {
   flex-shrink: 0;
   font-size: 10px;

@@ -99,13 +99,20 @@ export function GlobalSearchView({
     return counts;
   }, [allHits]);
 
-  const collectionPrefixesInResults = useMemo(() => {
-    const set = new Set(allHits.map((h) => h.prefix));
-    return set;
-  }, [allHits]);
-
   const filteredCollections = useMemo(() => {
-    let list = collections.filter((c) => collectionPrefixesInResults.has(c.prefix));
+    let list = collections
+      .map((c, i) => ({
+        ...c,
+        index: i,
+        matchCount: collectionHitCounts.get(c.prefix) ?? 0,
+      }))
+      .sort((a, b) => {
+        // Collections with hits first, then zero-hit at bottom
+        if (a.matchCount > 0 && b.matchCount === 0) return -1;
+        if (a.matchCount === 0 && b.matchCount > 0) return 1;
+        // Within same group, preserve original collection order
+        return a.index - b.index;
+      });
     if (filterSearch) {
       const lowered = filterSearch.toLowerCase();
       list = list.filter(
@@ -113,7 +120,7 @@ export function GlobalSearchView({
       );
     }
     return list;
-  }, [collections, filterSearch, collectionPrefixesInResults]);
+  }, [collections, filterSearch, collectionHitCounts]);
 
   const hasFilter = selectedPrefixes.size > 0;
 
@@ -130,8 +137,11 @@ export function GlobalSearchView({
   }, []);
 
   const selectAll = useCallback(() => {
-    setSelectedPrefixes(new Set(collectionPrefixesInResults));
-  }, [collectionPrefixesInResults]);
+    const withHits = new Set(
+      collections.filter((c) => (collectionHitCounts.get(c.prefix) ?? 0) > 0).map((c) => c.prefix),
+    );
+    setSelectedPrefixes(withHits);
+  }, [collections, collectionHitCounts]);
 
   const clearAll = useCallback(() => {
     setSelectedPrefixes(new Set());
@@ -205,11 +215,11 @@ export function GlobalSearchView({
                     <ScrollArea className="global-search-filter-list">
                       {filteredCollections.map((col) => {
                         const checked = selectedPrefixes.has(col.prefix);
-                        const matchCount = collectionHitCounts.get(col.prefix) ?? 0;
+                        const hasMatch = col.matchCount > 0;
                         return (
                           <label
                             key={col.prefix}
-                            className={`global-search-filter-item ${checked ? "checked" : ""}`}
+                            className={`global-search-filter-item ${checked ? "checked" : ""} ${!hasMatch ? "no-match" : ""}`}
                           >
                             <input
                               type="checkbox"
@@ -217,7 +227,9 @@ export function GlobalSearchView({
                               onChange={() => toggleCollection(col.prefix)}
                             />
                             <span className="global-search-filter-item-name">{col.name}</span>
-                            <span className="global-search-filter-item-count">{matchCount}</span>
+                            <span className="global-search-filter-item-count">
+                              {col.matchCount}
+                            </span>
                           </label>
                         );
                       })}
