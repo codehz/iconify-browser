@@ -1,36 +1,35 @@
 import { useEffect, useState } from "react";
-import type { IconifyJSON } from "@iconify/types";
-import { isAbortError, loadCollection } from "../data/iconifyLoader";
+import { isAbortError, searchIcons } from "../data/iconifyLoader";
+import type { GlobalSearchHit } from "../types";
 
-export function useCollection(prefix: string | null) {
-  const [data, setData] = useState<IconifyJSON | null>(null);
+export function useGlobalIconSearch(query: string, limit = 100) {
+  const [hits, setHits] = useState<GlobalSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    if (!prefix) {
-      setData(null);
+    if (!query.trim() || limit <= 0) {
+      setHits([]);
       setLoading(false);
       setError(null);
       return;
     }
 
-    setData(null);
     setLoading(true);
     setError(null);
 
-    loadCollection(prefix, { signal: controller.signal })
-      .then((collection) => {
-        setData(collection);
+    searchIcons(query, limit, { signal: controller.signal })
+      .then((nextHits) => {
+        setHits(nextHits);
       })
       .catch((err) => {
         if (isAbortError(err)) {
           return;
         }
 
-        setError(err instanceof Error ? err.message : "加载图标包失败");
+        setError(err instanceof Error ? err.message : "搜索图标失败");
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -41,7 +40,7 @@ export function useCollection(prefix: string | null) {
     return () => {
       controller.abort();
     };
-  }, [prefix]);
+  }, [limit, query]);
 
-  return { data, loading, error };
+  return { hits, loading, error };
 }
