@@ -133,9 +133,6 @@ export function DetailPanel({
         </div>
         <div className="detail-info">
           <div className="detail-copy-section">
-            <label className="detail-select-label" htmlFor="detail-format-select">
-              名称格式
-            </label>
             <select
               className="detail-format-select"
               id="detail-format-select"
@@ -159,7 +156,7 @@ export function DetailPanel({
                 className="detail-copy-button"
                 onClick={() => handleCopy(selectedFormat.value, selectedFormat.id)}
               >
-                {copiedField === selectedFormat.id ? "已复制" : "复制当前格式"}
+                {copiedField === selectedFormat.id ? "已复制" : "复制当前名称"}
               </button>
             </div>
           </div>
