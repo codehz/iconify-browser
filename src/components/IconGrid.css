@@ -162,7 +162,7 @@
   justify-content: flex-start;
   gap: 4px;
   padding: 8px 4px;
-  min-height: 68px;
+  min-height: 80px;
   background: none;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -197,11 +197,15 @@
 
 .icon-grid-label {
   font-size: 10px;
-  line-height: 12px;
+  line-height: 13px;
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: break-word;
   max-width: 100%;
   text-align: center;
 }

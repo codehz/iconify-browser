@@ -1,6 +1,6 @@
 export const ICON_GRID_MIN_COLUMN_WIDTH = 80;
 export const ICON_GRID_GAP = 4;
-export const ICON_GRID_ESTIMATED_ROW_HEIGHT = 70;
+export const ICON_GRID_ESTIMATED_ROW_HEIGHT = 82;
 
 export function getIconGridColumnCount(
   width: number,
