@@ -44,13 +44,13 @@
 }
 
 .detail-panel-action {
-  height: 28px;
+  height: var(--control-height);
   padding: 0 10px;
   border: 1px solid var(--border-color);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--bg-primary);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--control-font);
   cursor: pointer;
 }
 
@@ -98,7 +98,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
 }
 
@@ -178,7 +178,7 @@
   inline-size: 100%;
   min-width: 0;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -209,7 +209,7 @@
 .detail-format-select::picker(select) {
   margin-block: 6px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   padding: 0 6px 6px 6px;
 }
@@ -217,7 +217,7 @@
 .detail-format-option {
   margin: 6px 0 0 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   background: transparent;
   color: var(--text-primary);
@@ -252,8 +252,8 @@
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   padding: 2px 8px;
-  font-size: 11px;
-  border-radius: 3px;
+  font-size: var(--control-font);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -291,8 +291,8 @@
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   padding: 2px 8px;
-  font-size: 11px;
-  border-radius: 3px;
+  font-size: var(--control-font);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -306,8 +306,8 @@
   overflow: auto;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 8px;
+  border-radius: var(--radius-md);
+  padding: var(--input-padding);
   font-size: 11px;
   line-height: 1.4;
   color: var(--text-primary);
