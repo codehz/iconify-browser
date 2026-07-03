@@ -47,9 +47,7 @@ export interface GlobalSearchIndexManifest {
 export interface GlobalSearchIndexEntries {
   prefixes: string[];
   names: string[];
-  prefixIds: number[];
-  chunkIds: number[];
-  aliasFlags: number[];
+  runs: GlobalSearchRun[];
 }
 
 export interface GlobalSearchIndex extends GlobalSearchIndexManifest, GlobalSearchIndexEntries {}
@@ -60,3 +58,11 @@ export interface GlobalSearchHit {
   chunkId: number;
   isAlias: boolean;
 }
+
+export type GlobalSearchRun = [
+  start: number,
+  length: number,
+  prefixId: number,
+  chunkId: number,
+  aliasFlag: 0 | 1,
+];

@@ -3,7 +3,7 @@ import path from "node:path";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 
 const OUTPUT_DIR = path.join("public", "iconify-data");
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const CHUNK_TARGET_BYTES = 24 * 1024 * 1024;
 const SEARCH_ENTRIES_FILE = "entries.json";
 const SEARCH_NORMALIZATION = "lowercase-substring";
@@ -65,9 +65,7 @@ interface GlobalSearchManifest {
 interface GlobalSearchEntries {
   prefixes: string[];
   names: string[];
-  prefixIds: number[];
-  chunkIds: number[];
-  aliasFlags: number[];
+  runs: Array<[start: number, length: number, prefixId: number, chunkId: number, aliasFlag: 0 | 1]>;
 }
 
 interface GeneratedGlobalSearchIndex {
@@ -201,27 +199,25 @@ function buildChunkMeta(chunk: GeneratedChunk, id: number): GeneratedChunkMeta {
   };
 }
 
-function buildSearchEntries(
-  collection: IconifyCollectionSource,
-  iconChunkMap: Map<string, number>,
-  aliasChunkMap: Map<string, number>,
-) {
+function buildSearchEntries(chunks: GeneratedChunk[]) {
   const searchEntries: SearchableEntry[] = [];
 
-  for (const name of Object.keys(collection.icons)) {
-    searchEntries.push({
-      name,
-      chunkId: iconChunkMap.get(name) ?? 0,
-      isAlias: false,
-    });
-  }
+  for (const [chunkId, chunk] of chunks.entries()) {
+    for (const name of Object.keys(chunk.icons).sort()) {
+      searchEntries.push({
+        name,
+        chunkId,
+        isAlias: false,
+      });
+    }
 
-  for (const name of Object.keys(collection.aliases ?? {})) {
-    searchEntries.push({
-      name,
-      chunkId: aliasChunkMap.get(name) ?? 0,
-      isAlias: true,
-    });
+    for (const name of Object.keys(chunk.aliases ?? {}).sort()) {
+      searchEntries.push({
+        name,
+        chunkId,
+        isAlias: true,
+      });
+    }
   }
 
   return searchEntries;
@@ -232,7 +228,7 @@ export function shardCollection(
   chunkTargetBytes = CHUNK_TARGET_BYTES,
 ): ShardedCollection {
   const { iconChunks, iconChunkMap } = createIconChunks(collection.icons, chunkTargetBytes);
-  const aliasChunkMap = assignAliasesToChunks(collection.aliases, iconChunks, iconChunkMap);
+  assignAliasesToChunks(collection.aliases, iconChunks, iconChunkMap);
 
   const manifest: GeneratedCollectionManifest = {
     version: SCHEMA_VERSION,
@@ -246,7 +242,7 @@ export function shardCollection(
   return {
     manifest,
     chunks: iconChunks,
-    searchEntries: buildSearchEntries(collection, iconChunkMap, aliasChunkMap),
+    searchEntries: buildSearchEntries(iconChunks),
   };
 }
 
@@ -258,11 +254,8 @@ export function buildGlobalSearchIndex(
   );
   const prefixes = sortedCollections.map((collection) => collection.manifest.prefix);
   const prefixIds = new Map(prefixes.map((prefix, index) => [prefix, index]));
-
   const names: string[] = [];
-  const collectionPrefixIds: number[] = [];
-  const chunkIds: number[] = [];
-  const aliasFlags: number[] = [];
+  const runs: GlobalSearchEntries["runs"] = [];
 
   for (const collection of sortedCollections) {
     const prefixId = prefixIds.get(collection.manifest.prefix);
@@ -270,11 +263,25 @@ export function buildGlobalSearchIndex(
       continue;
     }
 
+    let currentRun: GlobalSearchEntries["runs"][number] | null = null;
     for (const entry of collection.searchEntries) {
+      const nextIndex = names.length;
       names.push(entry.name);
-      collectionPrefixIds.push(prefixId);
-      chunkIds.push(entry.chunkId);
-      aliasFlags.push(entry.isAlias ? 1 : 0);
+
+      const aliasFlag = entry.isAlias ? 1 : 0;
+      if (
+        currentRun &&
+        currentRun[2] === prefixId &&
+        currentRun[3] === entry.chunkId &&
+        currentRun[4] === aliasFlag &&
+        currentRun[0] + currentRun[1] === nextIndex
+      ) {
+        currentRun[1] += 1;
+        continue;
+      }
+
+      currentRun = [nextIndex, 1, prefixId, entry.chunkId, aliasFlag];
+      runs.push(currentRun);
     }
   }
 
@@ -289,9 +296,7 @@ export function buildGlobalSearchIndex(
     entries: {
       prefixes,
       names,
-      prefixIds: collectionPrefixIds,
-      chunkIds,
-      aliasFlags,
+      runs,
     },
   };
 }

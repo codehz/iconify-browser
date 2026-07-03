@@ -44,7 +44,7 @@ describe("iconifyLoader", () => {
 
       if (url.endsWith("/collections/demo/manifest.json")) {
         return createJsonResponse({
-          version: 2,
+          version: 3,
           prefix: "demo",
           iconCount: 2,
           aliasCount: 1,
@@ -99,7 +99,7 @@ describe("iconifyLoader", () => {
 
         if (url.endsWith("/collections/demo/manifest.json")) {
           return createJsonResponse({
-            version: 2,
+            version: 3,
             prefix: "demo",
             iconCount: 1,
             aliasCount: 1,
@@ -138,7 +138,7 @@ describe("iconifyLoader", () => {
 
       if (url.endsWith("/search/manifest.json")) {
         return createJsonResponse({
-          version: 2,
+          version: 3,
           entryCount: 3,
           prefixCount: 2,
           normalization: "lowercase-substring",
@@ -150,9 +150,11 @@ describe("iconifyLoader", () => {
         return createJsonResponse({
           prefixes: ["alpha", "beta"],
           names: ["Bell", "bell-alt", "cloud"],
-          prefixIds: [0, 0, 1],
-          chunkIds: [1, 1, 0],
-          aliasFlags: [0, 1, 0],
+          runs: [
+            [0, 1, 0, 1, 0],
+            [1, 1, 0, 1, 1],
+            [2, 1, 1, 0, 0],
+          ],
         });
       }
 

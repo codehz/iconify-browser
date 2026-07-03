@@ -6,6 +6,7 @@ import type {
   GlobalSearchIndex,
   GlobalSearchIndexEntries,
   GlobalSearchIndexManifest,
+  GlobalSearchRun,
 } from "../types";
 
 const manifestCache = new Map<string, CollectionManifest>();
@@ -185,13 +186,7 @@ export async function loadGlobalSearchIndex(options?: LoadOptions): Promise<Glob
     );
     assertNotAborted(options?.signal);
 
-    if (
-      !(
-        entries.names.length === entries.prefixIds.length &&
-        entries.names.length === entries.chunkIds.length &&
-        entries.names.length === entries.aliasFlags.length
-      )
-    ) {
+    if (!isValidGlobalSearchRuns(entries.names.length, entries.runs, entries.prefixes.length)) {
       throw new Error("全局搜索索引结构损坏");
     }
 
@@ -223,16 +218,30 @@ export function searchGlobalSearchIndex(
   }
 
   const hits: GlobalSearchHit[] = [];
+  let runIndex = 0;
+  let currentRun = index.runs[runIndex] ?? null;
+  let currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
+
   for (let indexOffset = 0; indexOffset < index.names.length; indexOffset += 1) {
+    while (currentRun && indexOffset >= currentRunEnd) {
+      runIndex += 1;
+      currentRun = index.runs[runIndex] ?? null;
+      currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
+    }
+
+    if (!currentRun) {
+      break;
+    }
+
     if (!index.names[indexOffset].toLowerCase().includes(normalizedQuery)) {
       continue;
     }
 
     hits.push({
-      prefix: index.prefixes[index.prefixIds[indexOffset]],
+      prefix: index.prefixes[currentRun[2]],
       name: index.names[indexOffset],
-      chunkId: index.chunkIds[indexOffset],
-      isAlias: index.aliasFlags[indexOffset] === 1,
+      chunkId: currentRun[3],
+      isAlias: currentRun[4] === 1,
     });
 
     if (hits.length >= limit) {
@@ -283,3 +292,29 @@ export function resetIconifyLoaderCaches() {
 }
 
 export { isAbortError };
+
+function isValidGlobalSearchRuns(nameCount: number, runs: GlobalSearchRun[], prefixCount: number) {
+  if (nameCount === 0) {
+    return runs.length === 0;
+  }
+
+  let expectedStart = 0;
+  for (const run of runs) {
+    const [start, length, prefixId, chunkId, aliasFlag] = run;
+    if (start !== expectedStart || length <= 0) {
+      return false;
+    }
+
+    if (prefixId < 0 || prefixId >= prefixCount || chunkId < 0) {
+      return false;
+    }
+
+    if (aliasFlag !== 0 && aliasFlag !== 1) {
+      return false;
+    }
+
+    expectedStart += length;
+  }
+
+  return expectedStart === nameCount;
+}

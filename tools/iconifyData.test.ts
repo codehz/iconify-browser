@@ -36,7 +36,7 @@ describe("iconifyData generator", () => {
     expect(entryMap.get("user-alt-2")).toBe(1);
   });
 
-  it("builds a split-array global search index", () => {
+  it("builds a run-based global search index", () => {
     const alpha = shardCollection(
       {
         prefix: "alpha",
@@ -62,7 +62,7 @@ describe("iconifyData generator", () => {
     const searchIndex = buildGlobalSearchIndex([beta, alpha]);
 
     expect(searchIndex.manifest).toEqual({
-      version: 2,
+      version: 3,
       entryCount: 3,
       prefixCount: 2,
       normalization: "lowercase-substring",
@@ -70,8 +70,10 @@ describe("iconifyData generator", () => {
     });
     expect(searchIndex.entries.prefixes).toEqual(["alpha", "beta"]);
     expect(searchIndex.entries.names).toEqual(["bell", "bell-alt", "cloud"]);
-    expect(searchIndex.entries.prefixIds).toEqual([0, 0, 1]);
-    expect(searchIndex.entries.chunkIds).toEqual([0, 0, 0]);
-    expect(searchIndex.entries.aliasFlags).toEqual([0, 1, 0]);
+    expect(searchIndex.entries.runs).toEqual([
+      [0, 1, 0, 0, 0],
+      [1, 1, 0, 0, 1],
+      [2, 1, 1, 0, 0],
+    ]);
   });
 });
