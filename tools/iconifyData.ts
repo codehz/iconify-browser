@@ -4,7 +4,8 @@ import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:z
 
 const OUTPUT_DIR = path.join("public", "iconify-data");
 const SCHEMA_VERSION = 3;
-const CHUNK_TARGET_BYTES = 24 * 1024 * 1024;
+// Smaller chunks improve search-hit follow-up fetches under HTTP/2 without exploding request counts.
+const CHUNK_TARGET_BYTES = 2 * 1024 * 1024;
 const SEARCH_ENTRIES_FILE = "entries.json";
 const SEARCH_NORMALIZATION = "lowercase-substring";
 const STATS_CHUNK_LIMIT = 5;
