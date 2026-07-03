@@ -1,0 +1,72 @@
+.aria-search-field {
+  position: relative;
+  display: block;
+}
+
+.aria-search-input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--input-padding);
+  padding-right: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--control-font);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.aria-search-input::-webkit-search-cancel-button,
+.aria-search-input::-webkit-search-decoration,
+.aria-search-input::-webkit-search-results-button,
+.aria-search-input::-webkit-search-results-decoration {
+  appearance: none;
+  display: none;
+}
+
+.aria-search-input[data-focused],
+.aria-search-input[data-focus-visible] {
+  border-color: var(--accent-color);
+  outline: none;
+}
+
+.aria-search-clear-button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    color 0.12s,
+    background 0.12s,
+    opacity 0.12s;
+}
+
+.aria-search-clear-button svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+
+.aria-search-clear-button[data-hovered],
+.aria-search-clear-button[data-focus-visible] {
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.aria-search-clear-button[data-pressed] {
+  background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  color: var(--accent-color);
+}

@@ -38,24 +38,6 @@
   width: 100%;
 }
 
-.sidebar-search-input {
-  width: 100%;
-  padding: var(--input-padding);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  font-size: var(--control-font);
-  border-radius: var(--radius-md);
-  outline: none;
-  box-sizing: border-box;
-}
-
-.sidebar-search-input[data-focused],
-.sidebar-search-input[data-focus-visible] {
-  border-color: var(--accent-color);
-  outline: none;
-}
-
 .sidebar-list {
   flex: 1;
   min-height: 0;

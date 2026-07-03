@@ -150,20 +150,6 @@
 
 .global-search-filter-search-input {
   margin: 0;
-  width: 100%;
-  padding: var(--input-padding);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: var(--control-font);
-  outline: none;
-}
-
-.global-search-filter-search-input[data-focused],
-.global-search-filter-search-input[data-focus-visible] {
-  border-color: var(--accent-color);
-  outline: none;
 }
 
 .global-search-filter-list {
@@ -287,21 +273,8 @@
 }
 
 .global-search-input {
-  width: 100%;
-  padding: var(--input-padding);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: 13px;
-  outline: none;
+  margin: 0;
   flex-shrink: 0;
-}
-
-.global-search-input[data-focused],
-.global-search-input[data-focus-visible] {
-  border-color: var(--accent-color);
-  outline: none;
 }
 
 .global-search-status,
