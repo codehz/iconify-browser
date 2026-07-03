@@ -202,6 +202,10 @@
   z-index: 20;
 }
 
+.icon-grid-category-scroller {
+  max-height: min(280px, 45vh);
+}
+
 .icon-grid-category-listbox {
   display: flex;
   flex-direction: column;
@@ -223,7 +227,7 @@
 .icon-grid-category-option {
   border: none;
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
+  padding: 6px 12px 6px 10px;
   background: transparent;
   color: var(--text-primary);
   font-size: var(--control-font);

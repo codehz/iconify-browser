@@ -231,6 +231,10 @@
   z-index: 20;
 }
 
+.detail-format-scroller {
+  max-height: min(320px, 50vh);
+}
+
 .detail-format-listbox {
   display: flex;
   flex-direction: column;

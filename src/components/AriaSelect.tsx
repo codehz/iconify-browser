@@ -9,6 +9,7 @@ import {
   Select,
   SelectValue,
 } from "react-aria-components";
+import SimpleBar from "simplebar-react";
 
 export interface AriaSelectOption<T extends string> {
   id: T;
@@ -66,18 +67,20 @@ export function AriaSelectComponent<T extends string, TOption extends AriaSelect
         />
       </AriaButton>
       <Popover className={`${classNamePrefix}-popover`} offset={4} placement="bottom start">
-        <ListBox className={`${classNamePrefix}-listbox`}>
-          {options.map((option) => (
-            <ListBoxItem
-              className={`${classNamePrefix}-option`}
-              id={option.id}
-              key={option.id}
-              textValue={option.textValue ?? option.id}
-            >
-              {renderOption(option)}
-            </ListBoxItem>
-          ))}
-        </ListBox>
+        <SimpleBar autoHide={false} className={`${classNamePrefix}-scroller`}>
+          <ListBox className={`${classNamePrefix}-listbox`}>
+            {options.map((option) => (
+              <ListBoxItem
+                className={`${classNamePrefix}-option`}
+                id={option.id}
+                key={option.id}
+                textValue={option.textValue ?? option.id}
+              >
+                {renderOption(option)}
+              </ListBoxItem>
+            ))}
+          </ListBox>
+        </SimpleBar>
       </Popover>
     </Select>
   );
