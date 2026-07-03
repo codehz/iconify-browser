@@ -1,0 +1,145 @@
+.detail-panel {
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  max-height: 300px;
+}
+
+.detail-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.detail-panel-title {
+  font-weight: 600;
+  color: var(--text-highlight);
+}
+
+.detail-panel-breadcrumb {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.detail-panel-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.detail-panel-close:hover {
+  color: var(--text-primary);
+}
+
+.detail-panel-content {
+  display: flex;
+  gap: 24px;
+  padding: 16px;
+  flex: 1;
+  overflow: hidden;
+  align-items: flex-start;
+}
+
+.detail-preview {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.detail-preview-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-primary);
+}
+
+.detail-preview-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.detail-info {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.detail-info-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.detail-info-label {
+  color: var(--text-secondary);
+  min-width: 32px;
+}
+
+.detail-info-value {
+  color: var(--text-primary);
+}
+
+.detail-svg {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.detail-svg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.detail-svg-copy {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.detail-svg-copy:hover {
+  background: var(--bg-hover);
+}
+
+.detail-svg-code {
+  flex: 1;
+  overflow: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

@@ -1,101 +1,70 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "./assets/vite.svg";
-import heroImg from "./assets/hero.png";
+import { useState, useCallback } from "react";
+import { useCollections } from "./hooks/useCollections";
+import { useCollection } from "./hooks/useCollection";
+import { Sidebar } from "./components/Sidebar";
+import { IconGrid } from "./components/IconGrid";
+import { DetailPanel } from "./components/DetailPanel";
 import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [selectedPrefix, setSelectedPrefix] = useState<string | null>(null);
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
+  const { collections, loading: collectionsLoading } = useCollections();
+  const { data: collectionData, loading: collectionLoading } = useCollection(selectedPrefix);
+
+  const handleSelectCollection = useCallback((prefix: string) => {
+    setSelectedPrefix(prefix);
+    setSelectedIcon(null);
+  }, []);
+
+  const handleSelectIcon = useCallback((name: string) => {
+    setSelectedIcon((prev) => (prev === name ? null : name));
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedIcon(null);
+  }, []);
+
+  const selectedCollectionInfo = collections.find((c) => c.prefix === selectedPrefix);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button type="button" className="counter" onClick={() => setCount((count) => count + 1)}>
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div className="app">
+      <Sidebar
+        collections={collections}
+        selectedPrefix={selectedPrefix}
+        onSelectCollection={handleSelectCollection}
+        loading={collectionsLoading}
+      />
+      <main className="main-area">
+        {!selectedPrefix ? (
+          <div className="welcome">
+            <h1>Iconify Browser</h1>
+            <p>从左侧选择一个图标包开始浏览</p>
+          </div>
+        ) : collectionLoading ? (
+          <div className="welcome">加载图标包...</div>
+        ) : collectionData ? (
+          <IconGrid
+            collection={collectionData}
+            collectionName={selectedCollectionInfo?.name ?? selectedPrefix}
+            collectionPrefix={selectedPrefix}
+            selectedIcon={selectedIcon}
+            onSelectIcon={handleSelectIcon}
+          />
+        ) : (
+          <div className="welcome error">加载失败</div>
+        )}
+      </main>
+      {selectedIcon && collectionData && (
+        <DetailPanel
+          iconName={selectedIcon}
+          collection={collectionData}
+          collectionName={selectedCollectionInfo?.name ?? ""}
+          collectionPrefix={selectedPrefix ?? ""}
+          onClose={handleCloseDetail}
+        />
+      )}
+    </div>
   );
 }
 
