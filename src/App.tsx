@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { IconifyJSON } from "@iconify/types";
 import type { GlobalSearchSelection, IconSelection } from "./types";
 import { useCollections } from "./hooks/useCollections";
 import { useCollection } from "./hooks/useCollection";
@@ -16,6 +17,17 @@ import {
 } from "./utils/viewState";
 import "./App.css";
 
+const DETAIL_PANEL_ANIMATION_DURATION_MS = 220;
+
+type DetailPanelPhase = "closed" | "opening" | "open" | "closing";
+
+interface DetailPanelRenderState {
+  selection: IconSelection;
+  collection: IconifyJSON | null;
+  collectionError: string | null;
+  collectionLoading: boolean;
+}
+
 function App() {
   const [activeMainView, setActiveMainView] = useState<MainView>("browse");
   const [selectedPrefix, setSelectedPrefix] = useState<string | null>(null);
@@ -24,6 +36,12 @@ function App() {
   const [browseSelectedCategory, setBrowseSelectedCategory] = useState("");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [detailSelection, setDetailSelection] = useState<IconSelection | null>(null);
+  const [renderedDetailPanel, setRenderedDetailPanel] = useState<DetailPanelRenderState | null>(
+    null,
+  );
+  const [detailPanelPhase, setDetailPanelPhase] = useState<DetailPanelPhase>("closed");
+  const detailPanelTimerRef = useRef<number | null>(null);
+  const hadActiveDetailPanelRef = useRef(false);
   const { collections, loading: collectionsLoading } = useCollections();
   const {
     favorites: favoritePrefixes,
@@ -43,6 +61,43 @@ function App() {
   const browseSelection = detailSelection?.kind === "browse" ? detailSelection : null;
   const globalSelection = detailSelection?.kind === "global-search" ? detailSelection : null;
   const isGlobalSearch = activeMainView === "global-search";
+  const activeDetailPanel = useMemo<DetailPanelRenderState | null>(() => {
+    if (!detailSelection) {
+      return null;
+    }
+
+    const isActiveBrowseSelection =
+      detailSelection.kind === "browse" &&
+      detailSelection.prefix === selectedPrefix &&
+      activeMainView === "browse";
+
+    return {
+      selection: detailSelection,
+      collection: isActiveBrowseSelection ? collectionData : null,
+      collectionError: isActiveBrowseSelection ? collectionError : null,
+      collectionLoading: isActiveBrowseSelection ? collectionLoading : false,
+    };
+  }, [
+    activeMainView,
+    collectionData,
+    collectionError,
+    collectionLoading,
+    detailSelection,
+    selectedPrefix,
+  ]);
+  const visibleDetailPanel = activeDetailPanel ?? renderedDetailPanel;
+  const hasActiveDetailPanel = activeDetailPanel !== null;
+  const isBrowseDetailSelected = browseSelection?.prefix === selectedPrefix;
+  const isBrowseDetailScrollReady = !isBrowseDetailSelected || detailPanelPhase === "open";
+  const isDetailPanelOpening = hasActiveDetailPanel && detailPanelPhase !== "open";
+  const isDetailPanelClosing = !hasActiveDetailPanel && detailPanelPhase === "closing";
+
+  const clearDetailPanelTimer = useCallback(() => {
+    if (detailPanelTimerRef.current !== null) {
+      window.clearTimeout(detailPanelTimerRef.current);
+      detailPanelTimerRef.current = null;
+    }
+  }, []);
 
   const handleSelectCollection = useCallback((prefix: string) => {
     setSelectedPrefix(prefix);
@@ -95,6 +150,49 @@ function App() {
       setSelectedPrefix(collections[0].prefix);
     }
   }, [collections, selectedPrefix]);
+
+  useEffect(() => {
+    if (activeDetailPanel) {
+      setRenderedDetailPanel(activeDetailPanel);
+    }
+  }, [activeDetailPanel]);
+
+  useEffect(() => {
+    const hadActiveDetailPanel = hadActiveDetailPanelRef.current;
+    hadActiveDetailPanelRef.current = hasActiveDetailPanel;
+
+    if (hasActiveDetailPanel) {
+      if (!hadActiveDetailPanel || detailPanelPhase === "closing" || renderedDetailPanel === null) {
+        clearDetailPanelTimer();
+        setDetailPanelPhase("opening");
+        detailPanelTimerRef.current = window.setTimeout(() => {
+          setDetailPanelPhase("open");
+          detailPanelTimerRef.current = null;
+        }, DETAIL_PANEL_ANIMATION_DURATION_MS);
+      }
+      return;
+    }
+
+    if (!renderedDetailPanel) {
+      clearDetailPanelTimer();
+      if (detailPanelPhase !== "closed") {
+        setDetailPanelPhase("closed");
+      }
+      return;
+    }
+
+    if (hadActiveDetailPanel || detailPanelPhase === "opening" || detailPanelPhase === "open") {
+      clearDetailPanelTimer();
+      setDetailPanelPhase("closing");
+      detailPanelTimerRef.current = window.setTimeout(() => {
+        setRenderedDetailPanel(null);
+        setDetailPanelPhase("closed");
+        detailPanelTimerRef.current = null;
+      }, DETAIL_PANEL_ANIMATION_DURATION_MS);
+    }
+  }, [clearDetailPanelTimer, detailPanelPhase, hasActiveDetailPanel, renderedDetailPanel]);
+
+  useEffect(() => clearDetailPanelTimer, [clearDetailPanelTimer]);
 
   return (
     <div className={`app ${isGlobalSearch ? "global-search-mode" : ""}`}>
@@ -193,6 +291,7 @@ function App() {
               onSelectedSuffixChange={setBrowseSelectedSuffix}
               searchQuery={browseSearchQuery}
               selectedCategory={browseSelectedCategory}
+              isDetailSelectionScrollReady={isBrowseDetailScrollReady}
               selectedIcon={
                 browseSelection?.prefix === selectedPrefix ? browseSelection.name : null
               }
@@ -212,33 +311,25 @@ function App() {
           />
         )}
       </main>
-      {detailSelection ? (
-        <DetailPanel
-          collection={
-            detailSelection.kind === "browse" &&
-            detailSelection.prefix === selectedPrefix &&
-            activeMainView === "browse"
-              ? collectionData
-              : null
-          }
-          collectionError={
-            detailSelection.kind === "browse" &&
-            detailSelection.prefix === selectedPrefix &&
-            activeMainView === "browse"
-              ? collectionError
-              : null
-          }
-          collectionLoading={
-            detailSelection.kind === "browse" &&
-            detailSelection.prefix === selectedPrefix &&
-            activeMainView === "browse"
-              ? collectionLoading
-              : false
-          }
-          onClose={handleCloseDetail}
-          onOpenCollection={handleOpenCollectionFromDetail}
-          selection={detailSelection}
-        />
+      {visibleDetailPanel ? (
+        <div
+          className={`detail-panel-shell ${isDetailPanelOpening ? "is-opening" : ""} ${isDetailPanelClosing ? "is-closing" : ""}`}
+        >
+          <div
+            aria-hidden="true"
+            className={`detail-panel-shadow ${isDetailPanelOpening ? "is-opening" : ""} ${isDetailPanelClosing ? "is-closing" : ""}`}
+          />
+          <div className="detail-panel-layer">
+            <DetailPanel
+              collection={visibleDetailPanel.collection}
+              collectionError={visibleDetailPanel.collectionError}
+              collectionLoading={visibleDetailPanel.collectionLoading}
+              onClose={handleCloseDetail}
+              onOpenCollection={handleOpenCollectionFromDetail}
+              selection={visibleDetailPanel.selection}
+            />
+          </div>
+        </div>
       ) : null}
     </div>
   );

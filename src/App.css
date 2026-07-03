@@ -1,4 +1,5 @@
 .app {
+  --detail-panel-height: 280px;
   position: relative;
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
@@ -16,6 +17,69 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-primary);
+}
+
+.detail-panel-shell {
+  grid-column: 1 / -1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.detail-panel-shadow {
+  height: var(--detail-panel-height);
+}
+
+.detail-panel-shadow.is-opening {
+  animation: detail-panel-shadow-enter 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.detail-panel-shadow.is-closing {
+  height: 0;
+  transition: height 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.detail-panel-layer {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--detail-panel-height);
+  min-width: 0;
+  will-change: transform, opacity;
+}
+
+.detail-panel-shell.is-opening .detail-panel-layer {
+  animation: detail-panel-layer-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.detail-panel-shell.is-closing .detail-panel-layer {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 180ms ease;
+  pointer-events: none;
+}
+
+@keyframes detail-panel-shadow-enter {
+  from {
+    height: 0;
+  }
+
+  to {
+    height: var(--detail-panel-height);
+  }
+}
+
+@keyframes detail-panel-layer-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .view-toggle {
@@ -75,4 +139,14 @@
 
 .welcome.error {
   color: var(--error-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-panel-shadow.is-opening,
+  .detail-panel-shadow.is-closing,
+  .detail-panel-shell.is-opening .detail-panel-layer,
+  .detail-panel-shell.is-closing .detail-panel-layer {
+    animation: none;
+    transition: none;
+  }
 }

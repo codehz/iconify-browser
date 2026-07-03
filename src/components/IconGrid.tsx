@@ -26,6 +26,7 @@ interface IconGridProps {
   collection: IconifyJSON;
   collectionName: string;
   collectionPrefix: string;
+  isDetailSelectionScrollReady: boolean;
   searchQuery: string;
   selectedSuffix: string | null;
   selectedCategory: string;
@@ -40,6 +41,7 @@ export function IconGrid({
   collection,
   collectionName,
   collectionPrefix,
+  isDetailSelectionScrollReady,
   searchQuery,
   selectedSuffix,
   selectedCategory,
@@ -134,7 +136,7 @@ export function IconGrid({
 
   // 滚动到图标所在行（处理 detail panel 遮挡问题）
   useEffect(() => {
-    if (!selectedIcon || fullyFilteredNames.length === 0) {
+    if (!selectedIcon || !isDetailSelectionScrollReady || fullyFilteredNames.length === 0) {
       return;
     }
 
@@ -146,11 +148,18 @@ export function IconGrid({
     const rowIndex = Math.floor(iconIndex / columnCount);
 
     return retimer(
-      setTimeout(() => {
+      window.setTimeout(() => {
         rowVirtualizer.scrollToIndex(rowIndex, { align: "center", behavior: "smooth" });
-      }, 100),
+      }, 0),
     );
-  }, [selectedIcon, fullyFilteredNames, columnCount, rowVirtualizer]);
+  }, [
+    selectedIcon,
+    isDetailSelectionScrollReady,
+    fullyFilteredNames,
+    columnCount,
+    rowVirtualizer,
+    retimer,
+  ]);
 
   useEffect(() => {
     igScrollElement?.scrollTo({ top: 0 });

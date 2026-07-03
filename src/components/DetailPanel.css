@@ -1,10 +1,9 @@
 .detail-panel {
-  grid-column: 1 / -1;
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
-  height: 280px;
+  height: 100%;
   min-width: 0;
 }
 
