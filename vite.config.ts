@@ -61,10 +61,17 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg}"],
         runtimeCaching: [
           {
-            urlPattern: /^\/iconify-data\/.*\.json$/,
+            urlPattern: /^\/iconify-data\/index\.json$/,
             handler: "StaleWhileRevalidate",
             options: {
-              cacheName: "iconify-data",
+              cacheName: "iconify-data-index",
+            },
+          },
+          {
+            urlPattern: /^\/iconify-data\/.*\.[0-9a-f]{12}\.json$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "iconify-data-immutable",
               expiration: {
                 maxEntries: 500,
                 maxAgeSeconds: 60 * 60 * 24 * 30,

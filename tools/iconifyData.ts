@@ -1,14 +1,16 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 
 const OUTPUT_DIR = path.join("public", "iconify-data");
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 // Smaller chunks improve search-hit follow-up fetches under HTTP/2 without exploding request counts.
 const CHUNK_TARGET_BYTES = 2 * 1024 * 1024;
-const SEARCH_ENTRIES_FILE = "entries.json";
+const DATA_INDEX_FILE = "index.json";
 const SEARCH_NORMALIZATION = "lowercase-substring";
 const STATS_CHUNK_LIMIT = 5;
+const CONTENT_HASH_LENGTH = 12;
 
 interface IconifyAlias {
   parent: string;
@@ -30,6 +32,7 @@ interface GeneratedChunk {
 interface GeneratedChunkMeta {
   id: number;
   file: string;
+  hash: string;
   iconCount: number;
   aliasCount: number;
 }
@@ -61,6 +64,7 @@ interface GlobalSearchManifest {
   prefixCount: number;
   normalization: typeof SEARCH_NORMALIZATION;
   entriesFile: string;
+  entriesHash: string;
 }
 
 interface GlobalSearchEntries {
@@ -72,6 +76,27 @@ interface GlobalSearchEntries {
 interface GeneratedGlobalSearchIndex {
   manifest: GlobalSearchManifest;
   entries: GlobalSearchEntries;
+}
+
+interface GeneratedAssetRef {
+  path: string;
+  hash: string;
+}
+
+interface GeneratedCollectionAssetIndex {
+  manifest: GeneratedAssetRef;
+  chunks: GeneratedAssetRef[];
+}
+
+interface GeneratedDataIndex {
+  version: number;
+  collectionCount: number;
+  collections: GeneratedAssetRef;
+  search: {
+    manifest: GeneratedAssetRef;
+  };
+  collectionManifests: Record<string, GeneratedAssetRef>;
+  assets: GeneratedAssetRef[];
 }
 
 interface GenerationMeta {
@@ -100,6 +125,26 @@ function getBaseCollectionData(collection: IconifyCollectionSource): Record<stri
 
 function getEntrySize(name: string, value: unknown) {
   return Buffer.byteLength(JSON.stringify({ [name]: value }));
+}
+
+function createContentHash(raw: Buffer | string) {
+  const buffer = typeof raw === "string" ? Buffer.from(raw) : raw;
+  return createHash("sha256").update(buffer).digest("hex").slice(0, CONTENT_HASH_LENGTH);
+}
+
+function createHashedJsonFileName(baseName: string, rawJson: string) {
+  const hash = createContentHash(rawJson);
+  return {
+    file: `${baseName}.${hash}.json`,
+    hash,
+  };
+}
+
+function createAssetRef(assetPath: string, hash: string): GeneratedAssetRef {
+  return {
+    path: `/iconify-data/${assetPath.replaceAll(path.sep, "/")}`,
+    hash,
+  };
 }
 
 function createIconChunks(
@@ -192,9 +237,12 @@ function assignAliasesToChunks(
 }
 
 function buildChunkMeta(chunk: GeneratedChunk, id: number): GeneratedChunkMeta {
+  const chunkJson = JSON.stringify(chunk);
+  const { file, hash } = createHashedJsonFileName(`chunk-${id}`, chunkJson);
   return {
     id,
-    file: `chunk-${id}.json`,
+    file,
+    hash,
     iconCount: Object.keys(chunk.icons).length,
     aliasCount: Object.keys(chunk.aliases ?? {}).length,
   };
@@ -292,7 +340,9 @@ export function buildGlobalSearchIndex(
       entryCount: names.length,
       prefixCount: prefixes.length,
       normalization: SEARCH_NORMALIZATION,
-      entriesFile: SEARCH_ENTRIES_FILE,
+      entriesFile: createHashedJsonFileName("entries", JSON.stringify({ prefixes, names, runs }))
+        .file,
+      entriesHash: createContentHash(JSON.stringify({ prefixes, names, runs })),
     },
     entries: {
       prefixes,
@@ -346,12 +396,13 @@ function measureCompressedSizes(raw: Buffer | string) {
 }
 
 function printGenerationStats(
+  searchEntriesFile: string,
   searchEntriesJson: string,
   chunkStats: Array<SizeStat & { json: string }>,
 ) {
   const searchStats = measureCompressedSizes(searchEntriesJson);
   console.info(
-    `[iconify-data] search/${SEARCH_ENTRIES_FILE}: raw=${formatSize(searchStats.rawBytes)} gzip=${formatSize(searchStats.gzipBytes)} brotli=${formatSize(searchStats.brotliBytes)}`,
+    `[iconify-data] search/${searchEntriesFile}: raw=${formatSize(searchStats.rawBytes)} gzip=${formatSize(searchStats.gzipBytes)} brotli=${formatSize(searchStats.brotliBytes)}`,
   );
 
   for (const chunkStat of pickLargestStats(chunkStats, STATS_CHUNK_LIMIT)) {
@@ -360,6 +411,38 @@ function printGenerationStats(
       `[iconify-data] ${chunkStat.label}: raw=${formatSize(compressed.rawBytes)} gzip=${formatSize(compressed.gzipBytes)} brotli=${formatSize(compressed.brotliBytes)}`,
     );
   }
+}
+
+export function buildGeneratedDataIndex(
+  collectionsAsset: GeneratedAssetRef,
+  searchManifestAsset: GeneratedAssetRef,
+  collectionAssets: Record<string, GeneratedCollectionAssetIndex>,
+  extraAssets: GeneratedAssetRef[],
+): GeneratedDataIndex {
+  const collectionManifests = Object.fromEntries(
+    Object.entries(collectionAssets)
+      .sort(([leftPrefix], [rightPrefix]) => leftPrefix.localeCompare(rightPrefix))
+      .map(([prefix, assets]) => [prefix, assets.manifest]),
+  );
+  const assets = [
+    collectionsAsset,
+    searchManifestAsset,
+    ...extraAssets,
+    ...Object.values(collectionAssets)
+      .flatMap((assets) => [assets.manifest, ...assets.chunks])
+      .sort((left, right) => left.path.localeCompare(right.path)),
+  ];
+
+  return {
+    version: SCHEMA_VERSION,
+    collectionCount: Object.keys(collectionAssets).length,
+    collections: collectionsAsset,
+    search: {
+      manifest: searchManifestAsset,
+    },
+    collectionManifests,
+    assets: assets.sort((left, right) => left.path.localeCompare(right.path)),
+  };
 }
 
 export async function ensureIconifyData(rootDir: string) {
@@ -392,47 +475,79 @@ export async function ensureIconifyData(rootDir: string) {
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(path.join(outputDir, "collections"), { recursive: true });
   await mkdir(path.join(outputDir, "search"), { recursive: true });
-  await writeFile(path.join(outputDir, "collections.json"), JSON.stringify(collections));
+  const collectionsJson = JSON.stringify(collections);
+  const collectionsFileMeta = createHashedJsonFileName("collections", collectionsJson);
+  const collectionsRelativePath = collectionsFileMeta.file;
+  await writeFile(path.join(outputDir, collectionsRelativePath), collectionsJson);
 
   const shardedCollections: ShardedCollection[] = [];
   const chunkStats: Array<SizeStat & { json: string }> = [];
+  const collectionAssets: Record<string, GeneratedCollectionAssetIndex> = {};
 
   for (const prefix of collectionPrefixes) {
     const sourcePath = path.join(jsonDir, `${prefix}.json`);
     const collection = await readJsonFile<IconifyCollectionSource>(sourcePath);
     const shardedCollection = shardCollection(collection);
     const collectionDir = path.join(outputDir, "collections", prefix);
+    const collectionRelativeDir = path.join("collections", prefix);
 
     shardedCollections.push(shardedCollection);
     await mkdir(collectionDir, { recursive: true });
-    await writeFile(
-      path.join(collectionDir, "manifest.json"),
-      JSON.stringify(shardedCollection.manifest),
-    );
+
+    const chunkAssets: GeneratedAssetRef[] = [];
 
     for (const [index, chunk] of shardedCollection.chunks.entries()) {
       const chunkJson = JSON.stringify(chunk);
       const chunkMeta = shardedCollection.manifest.chunks[index];
 
       await writeFile(path.join(collectionDir, chunkMeta.file), chunkJson);
+      chunkAssets.push(
+        createAssetRef(path.join(collectionRelativeDir, chunkMeta.file), chunkMeta.hash),
+      );
       chunkStats.push({
         ...createSizeStat(`collections/${prefix}/${chunkMeta.file}`, Buffer.byteLength(chunkJson)),
         json: chunkJson,
       });
     }
+
+    const manifestJson = JSON.stringify(shardedCollection.manifest);
+    const manifestFileMeta = createHashedJsonFileName("manifest", manifestJson);
+    await writeFile(path.join(collectionDir, manifestFileMeta.file), manifestJson);
+    collectionAssets[prefix] = {
+      manifest: createAssetRef(
+        path.join(collectionRelativeDir, manifestFileMeta.file),
+        manifestFileMeta.hash,
+      ),
+      chunks: chunkAssets,
+    };
   }
 
   const globalSearchIndex = buildGlobalSearchIndex(shardedCollections);
-  const searchManifestPath = path.join(outputDir, "search", "manifest.json");
-  const searchEntriesPath = path.join(outputDir, "search", SEARCH_ENTRIES_FILE);
   const searchEntriesJson = JSON.stringify(globalSearchIndex.entries);
+  const searchEntriesFile = globalSearchIndex.manifest.entriesFile;
+  const searchEntriesPath = path.join(outputDir, "search", searchEntriesFile);
+  const searchManifestJson = JSON.stringify(globalSearchIndex.manifest);
+  const searchManifestFileMeta = createHashedJsonFileName("manifest", searchManifestJson);
+  const searchManifestPath = path.join(outputDir, "search", searchManifestFileMeta.file);
+  const dataIndex = buildGeneratedDataIndex(
+    createAssetRef(collectionsRelativePath, collectionsFileMeta.hash),
+    createAssetRef(path.join("search", searchManifestFileMeta.file), searchManifestFileMeta.hash),
+    collectionAssets,
+    [
+      createAssetRef(
+        path.join("search", searchEntriesFile),
+        globalSearchIndex.manifest.entriesHash,
+      ),
+    ],
+  );
 
-  await writeFile(searchManifestPath, JSON.stringify(globalSearchIndex.manifest));
+  await writeFile(searchManifestPath, searchManifestJson);
   await writeFile(searchEntriesPath, searchEntriesJson);
+  await writeFile(path.join(outputDir, DATA_INDEX_FILE), JSON.stringify(dataIndex));
   await writeFile(path.join(outputDir, "_meta.json"), JSON.stringify(nextMeta));
 
   console.info(
     `[iconify-data] generated ${collectionPrefixes.length} collections and ${globalSearchIndex.manifest.entryCount} searchable entries`,
   );
-  printGenerationStats(searchEntriesJson, chunkStats);
+  printGenerationStats(searchEntriesFile, searchEntriesJson, chunkStats);
 }

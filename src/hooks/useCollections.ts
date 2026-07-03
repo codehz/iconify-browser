@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isAbortError, loadIconifyDataIndex } from "../data/iconifyLoader";
 import type { CollectionItem } from "../types";
 
 interface CollectionRaw {
@@ -19,7 +20,8 @@ export function useCollections() {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch("/iconify-data/collections.json", { signal: controller.signal })
+    loadIconifyDataIndex({ signal: controller.signal })
+      .then((index) => fetch(index.collections.path, { signal: controller.signal }))
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`加载图标包列表失败: ${response.status}`);
@@ -39,7 +41,7 @@ export function useCollections() {
         setCollections(list);
       })
       .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") {
+        if (isAbortError(err)) {
           return;
         }
 

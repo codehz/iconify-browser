@@ -41,6 +41,7 @@ export interface CollectionChunk {
 export interface CollectionChunkMeta {
   id: number;
   file: string;
+  hash: string;
   iconCount: number;
   aliasCount: number;
 }
@@ -60,6 +61,23 @@ export interface GlobalSearchIndexManifest {
   prefixCount: number;
   normalization: "lowercase-substring";
   entriesFile: string;
+  entriesHash: string;
+}
+
+export interface IconifyDataAsset {
+  path: string;
+  hash: string;
+}
+
+export interface IconifyDataIndex {
+  version: number;
+  collectionCount: number;
+  collections: IconifyDataAsset;
+  search: {
+    manifest: IconifyDataAsset;
+  };
+  collectionManifests: Record<string, IconifyDataAsset>;
+  assets: IconifyDataAsset[];
 }
 
 export interface GlobalSearchIndexEntries {

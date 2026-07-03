@@ -3,12 +3,17 @@ import type {
   CollectionChunk,
   CollectionManifest,
   GlobalSearchHit,
+  IconifyDataIndex,
   GlobalSearchIndex,
   GlobalSearchIndexEntries,
   GlobalSearchIndexManifest,
   GlobalSearchRun,
 } from "../types";
 
+const DATA_INDEX_URL = "/iconify-data/index.json";
+
+let iconifyDataIndexCache: IconifyDataIndex | null = null;
+let iconifyDataIndexPromise: Promise<IconifyDataIndex> | null = null;
 const manifestCache = new Map<string, CollectionManifest>();
 const manifestPromiseCache = new Map<string, Promise<CollectionManifest>>();
 const chunkCache = new Map<string, CollectionChunk>();
@@ -71,6 +76,30 @@ async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T;
 }
 
+export async function loadIconifyDataIndex(options?: LoadOptions): Promise<IconifyDataIndex> {
+  if (iconifyDataIndexCache) {
+    return withAbort(Promise.resolve(iconifyDataIndexCache), options?.signal);
+  }
+
+  if (iconifyDataIndexPromise) {
+    return withAbort(iconifyDataIndexPromise, options?.signal);
+  }
+
+  const promise = fetchJson<IconifyDataIndex>(DATA_INDEX_URL)
+    .then((index) => {
+      iconifyDataIndexPromise = null;
+      iconifyDataIndexCache = index;
+      return index;
+    })
+    .catch((error: unknown) => {
+      iconifyDataIndexPromise = null;
+      throw error;
+    });
+
+  iconifyDataIndexPromise = promise;
+  return withAbort(promise, options?.signal);
+}
+
 export function mergeCollection(
   manifest: CollectionManifest,
   chunks: CollectionChunk[],
@@ -120,7 +149,15 @@ export async function loadCollectionManifest(
     return withAbort(pending, options?.signal);
   }
 
-  const promise = fetchJson<CollectionManifest>(`/iconify-data/collections/${prefix}/manifest.json`)
+  const promise = loadIconifyDataIndex()
+    .then((index) => {
+      const manifestAsset = index.collectionManifests[prefix];
+      if (!manifestAsset) {
+        throw new Error(`未找到图标包清单: ${prefix}`);
+      }
+
+      return fetchJson<CollectionManifest>(manifestAsset.path);
+    })
     .then((manifest) => {
       manifestPromiseCache.delete(prefix);
       manifestCache.set(prefix, manifest);
@@ -152,7 +189,7 @@ export async function loadCollectionChunk(
   }
 
   const promise = (async () => {
-    const manifest = options?.manifest ?? (await loadCollectionManifest(prefix, options));
+    const manifest = options?.manifest ?? (await loadCollectionManifest(prefix));
     const chunkMeta = manifest.chunks.find((chunk) => chunk.id === chunkId);
 
     if (!chunkMeta) {
@@ -202,9 +239,8 @@ export async function loadGlobalSearchIndex(options?: LoadOptions): Promise<Glob
   }
 
   const promise = (async () => {
-    const manifest = await fetchJson<GlobalSearchIndexManifest>(
-      "/iconify-data/search/manifest.json",
-    );
+    const dataIndex = await loadIconifyDataIndex();
+    const manifest = await fetchJson<GlobalSearchIndexManifest>(dataIndex.search.manifest.path);
     assertNotAborted(options?.signal);
 
     const entries = await fetchJson<GlobalSearchIndexEntries>(
@@ -316,6 +352,8 @@ export async function loadIconBySearchHit(
 }
 
 export function resetIconifyLoaderCaches() {
+  iconifyDataIndexCache = null;
+  iconifyDataIndexPromise = null;
   manifestCache.clear();
   manifestPromiseCache.clear();
   chunkCache.clear();
