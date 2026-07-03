@@ -158,7 +158,6 @@
 .detail-copy-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-height: 0;
 }
 
@@ -232,19 +231,14 @@
   background: color-mix(in srgb, var(--accent-color) 18%, var(--bg-primary));
 }
 
-.detail-copy-copy {
+.detail-copy-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.detail-copy-label {
+  align-items: center;
+  margin-bottom: 4px;
   font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--text-secondary);
+  text-transform: uppercase;
 }
 
 .detail-copy-button {
@@ -259,11 +253,6 @@
 
 .detail-copy-button:hover {
   background: var(--bg-hover);
-}
-
-.detail-copy-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .detail-svg {

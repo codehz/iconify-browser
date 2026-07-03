@@ -220,6 +220,16 @@ function DetailPanelContent({
       </div>
       <div className="detail-info">
         <div className="detail-copy-section">
+          <div className="detail-copy-header">
+            <span>名称格式</span>
+            <button
+              className="detail-copy-button"
+              onClick={() => onCopy(selectedFormat.value, selectedFormat.id)}
+              type="button"
+            >
+              {copiedField === selectedFormat.id ? "已复制" : "复制"}
+            </button>
+          </div>
           <select
             className="detail-format-select"
             id="detail-format-select"
@@ -242,15 +252,6 @@ function DetailPanelContent({
               </option>
             ))}
           </select>
-          <div className="detail-copy-actions">
-            <button
-              className="detail-copy-button"
-              onClick={() => onCopy(selectedFormat.value, selectedFormat.id)}
-              type="button"
-            >
-              {copiedField === selectedFormat.id ? "已复制" : "复制当前名称"}
-            </button>
-          </div>
         </div>
         <div className="detail-meta">
           {aliasData ? (
