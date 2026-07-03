@@ -1,8 +1,9 @@
-import { createElement, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { IconifyJSON } from "@iconify/types";
+import { AriaSelectComponent, type AriaSelectOption } from "./AriaSelect";
 import { useElementWidth } from "../hooks/useElementWidth";
 import {
   getIconGridColumnCount,
@@ -36,6 +37,13 @@ interface IconGridProps {
   onSelectedCategoryChange: (category: string) => void;
   onSelectIcon: (name: string) => void;
 }
+
+interface CategoryOption extends AriaSelectOption<string> {
+  category: string;
+  count: number;
+}
+
+const ALL_CATEGORIES_ID = "__all__";
 
 export function IconGrid({
   collection,
@@ -106,6 +114,23 @@ export function IconGrid({
         ]),
       ),
     [categoryFilters, filteredNames],
+  );
+  const categoryOptions = useMemo<CategoryOption[]>(
+    () => [
+      {
+        id: ALL_CATEGORIES_ID,
+        category: "全部类别",
+        count: filteredNames.length,
+        textValue: "全部类别",
+      },
+      ...categoryFilters.map((filter) => ({
+        id: filter.category,
+        category: filter.category,
+        count: categoryCounts.get(filter.category) ?? 0,
+        textValue: `${filter.category} ${categoryCounts.get(filter.category) ?? 0}`,
+      })),
+    ],
+    [categoryCounts, categoryFilters, filteredNames.length],
   );
   const fullyFilteredNames = useMemo(() => {
     if (!selectedCategory) {
@@ -209,27 +234,21 @@ export function IconGrid({
           {supportsCategoryPreview ? (
             <label className="icon-grid-category-filter">
               <span className="icon-grid-category-label">类别</span>
-              <select
-                className="icon-grid-category-select"
-                value={selectedCategory}
-                onChange={(e) => onSelectedCategoryChange(e.target.value)}
-              >
-                <button className="icon-grid-category-button" type="button">
-                  {createElement("selectedcontent")}
-                </button>
-                <option className="icon-grid-category-option" value="">
-                  全部类别
-                </option>
-                {categoryFilters.map((filter) => (
-                  <option
-                    className="icon-grid-category-option"
-                    key={filter.category}
-                    value={filter.category}
-                  >
-                    {filter.category} ({categoryCounts.get(filter.category) ?? 0})
-                  </option>
-                ))}
-              </select>
+              <AriaSelectComponent<string, CategoryOption>
+                ariaLabel="类别"
+                classNamePrefix="icon-grid-category"
+                onSelectionChange={(value) =>
+                  onSelectedCategoryChange(value === ALL_CATEGORIES_ID ? "" : value)
+                }
+                options={categoryOptions}
+                renderOption={(option) => (
+                  <span className="icon-grid-category-option-content">
+                    <span className="icon-grid-category-option-label">{option.category}</span>
+                    <span className="icon-grid-category-option-count">{option.count}</span>
+                  </span>
+                )}
+                selectedKey={selectedCategory || ALL_CATEGORIES_ID}
+              />
             </label>
           ) : null}
         </div>

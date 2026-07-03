@@ -1,17 +1,9 @@
 import type { Key } from "react";
-import {
-  Button as AriaButton,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  Select,
-  SelectValue,
-} from "react-aria-components";
+import { AriaSelectComponent, type AriaSelectOption } from "./AriaSelect";
 
 export type NameFormatId = "iconify" | "name" | "component" | "tailwind" | "unocss" | "import";
 
-export interface NameFormatOption {
-  id: NameFormatId;
+export interface NameFormatOption extends AriaSelectOption<NameFormatId> {
   label: string;
   value: string;
 }
@@ -19,57 +11,27 @@ export interface NameFormatOption {
 interface DetailFormatSelectProps {
   options: NameFormatOption[];
   selectedKey: NameFormatId;
-  selectedOption: NameFormatOption;
   onSelectionChange: (value: NameFormatId) => void;
 }
 
 export function DetailFormatSelect({
   options,
   selectedKey,
-  selectedOption,
   onSelectionChange,
 }: DetailFormatSelectProps) {
   return (
-    <Select
-      aria-label="名称格式"
-      className="detail-format-select"
+    <AriaSelectComponent<NameFormatId, NameFormatOption>
+      ariaLabel="名称格式"
+      classNamePrefix="detail-format"
       onSelectionChange={(key) => {
         if (isNameFormatId(key)) {
           onSelectionChange(key);
         }
       }}
+      options={options}
+      renderOption={(format) => <FormatOptionContent format={format} />}
       selectedKey={selectedKey}
-    >
-      <AriaButton className="detail-format-button">
-        <SelectValue className="detail-format-value">
-          {() => <FormatOptionContent format={selectedOption} />}
-        </SelectValue>
-        <span aria-hidden="true" className="detail-format-chevron">
-          ▾
-        </span>
-      </AriaButton>
-      <Popover className="detail-format-popover" offset={4} placement="bottom start">
-        <ListBox className="detail-format-listbox">
-          {options.map((format) => (
-            <ListBoxItem
-              className="detail-format-option"
-              id={format.id}
-              key={format.id}
-              textValue={`${format.label} ${format.value}`}
-            >
-              {({ isSelected }) => (
-                <>
-                  <FormatOptionContent format={format} />
-                  <span aria-hidden="true" className="detail-format-option-check">
-                    {isSelected ? "✓" : ""}
-                  </span>
-                </>
-              )}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+    />
   );
 }
 

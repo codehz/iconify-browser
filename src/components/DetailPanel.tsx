@@ -114,9 +114,6 @@ export function DetailPanel({
     !iconData && resolvedCollection?.aliases ? resolvedCollection.aliases[iconName ?? ""] : null;
   const width = iconData?.width ?? resolvedCollection?.width ?? 24;
   const height = iconData?.height ?? resolvedCollection?.height ?? 24;
-  const selectedFormat =
-    nameFormats.find((format) => format.id === selectedFormatId) ?? nameFormats[0];
-
   const handleCopy = (value: string, field: string) => {
     navigator.clipboard.writeText(value).then(
       () => {
@@ -171,7 +168,6 @@ export function DetailPanel({
           iconHtml={iconHtml}
           nameFormats={nameFormats}
           onCopy={handleCopy}
-          selectedFormat={selectedFormat}
           selectedFormatId={selectedFormatId}
           setSelectedFormatId={setSelectedFormatId}
           width={width}
@@ -188,7 +184,6 @@ interface DetailPanelContentProps {
   iconHtml: string;
   nameFormats: NameFormatOption[];
   onCopy: (value: string, field: string) => void;
-  selectedFormat: NameFormatOption;
   selectedFormatId: NameFormatId;
   setSelectedFormatId: (value: NameFormatId) => void;
   width: number;
@@ -201,7 +196,6 @@ function DetailPanelContent({
   iconHtml,
   nameFormats,
   onCopy,
-  selectedFormat,
   selectedFormatId,
   setSelectedFormatId,
   width,
@@ -223,17 +217,20 @@ function DetailPanelContent({
             <span>名称格式</span>
             <button
               className="detail-copy-button"
-              onClick={() => onCopy(selectedFormat.value, selectedFormat.id)}
+              onClick={() => {
+                const selectedFormat =
+                  nameFormats.find((format) => format.id === selectedFormatId) ?? nameFormats[0];
+                onCopy(selectedFormat.value, selectedFormat.id);
+              }}
               type="button"
             >
-              {copiedField === selectedFormat.id ? "已复制" : "复制"}
+              {copiedField === selectedFormatId ? "已复制" : "复制"}
             </button>
           </div>
           <DetailFormatSelect
             onSelectionChange={setSelectedFormatId}
             options={nameFormats}
             selectedKey={selectedFormatId}
-            selectedOption={selectedFormat}
           />
         </div>
         <div className="detail-meta">

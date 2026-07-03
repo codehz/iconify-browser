@@ -206,14 +206,20 @@
 }
 
 .detail-format-chevron {
+  display: block;
   flex-shrink: 0;
   margin-left: 12px;
   color: var(--text-secondary);
-  font-size: 11px;
+  width: 12px;
+  height: 12px;
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .detail-format-select[data-open] .detail-format-chevron {
   color: var(--text-primary);
+  transform: rotate(180deg);
 }
 
 .detail-format-popover {
@@ -262,13 +268,6 @@
 
 .detail-format-option[data-selected] {
   background: color-mix(in srgb, var(--accent-color) 18%, var(--bg-primary));
-}
-
-.detail-format-option-check {
-  flex-shrink: 0;
-  width: 12px;
-  color: var(--accent-hover);
-  text-align: center;
 }
 
 .detail-copy-header {
