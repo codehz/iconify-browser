@@ -17,9 +17,17 @@ export function useCollections() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    import("@iconify/json/collections.json")
-      .then((mod) => {
-        const raw = mod.default as unknown as Record<string, CollectionRaw>;
+    const controller = new AbortController();
+
+    fetch("/iconify-data/collections.json", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`加载图标包列表失败: ${response.status}`);
+        }
+
+        return (await response.json()) as Record<string, CollectionRaw>;
+      })
+      .then((raw) => {
         const list = Object.entries(raw)
           .map(([prefix, info]) => ({
             prefix,
@@ -31,12 +39,23 @@ export function useCollections() {
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
         setCollections(list);
-        setLoading(false);
       })
       .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+
         setError(err instanceof Error ? err.message : "加载失败");
-        setLoading(false);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       });
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   return { collections, loading, error };

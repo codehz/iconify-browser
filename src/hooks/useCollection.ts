@@ -1,11 +1,44 @@
 import { useEffect, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
 
-const collectionUrls = import.meta.glob("/node_modules/@iconify/json/json/*.json", {
-  eager: true,
-  import: "default",
-  query: "?url",
-}) as Record<string, string>;
+interface CollectionChunk {
+  icons: NonNullable<IconifyJSON["icons"]>;
+  aliases?: NonNullable<IconifyJSON["aliases"]>;
+}
+
+interface CollectionManifest {
+  version: number;
+  prefix: string;
+  iconCount: number;
+  aliasCount: number;
+  base: Omit<IconifyJSON, "icons" | "aliases">;
+  chunks: string[];
+}
+
+function mergeCollection(manifest: CollectionManifest, chunks: CollectionChunk[]): IconifyJSON {
+  const icons: NonNullable<IconifyJSON["icons"]> = {};
+  const aliases: NonNullable<IconifyJSON["aliases"]> = {};
+
+  for (const chunk of chunks) {
+    Object.assign(icons, chunk.icons);
+
+    if (chunk.aliases) {
+      Object.assign(aliases, chunk.aliases);
+    }
+  }
+
+  const collection: IconifyJSON = {
+    ...manifest.base,
+    prefix: manifest.prefix,
+    icons,
+  };
+
+  if (Object.keys(aliases).length > 0) {
+    collection.aliases = aliases;
+  }
+
+  return collection;
+}
 
 export function useCollection(prefix: string | null) {
   const [data, setData] = useState<IconifyJSON | null>(null);
@@ -22,30 +55,37 @@ export function useCollection(prefix: string | null) {
       return;
     }
 
-    const modulePath = `/node_modules/@iconify/json/json/${prefix}.json`;
-    const collectionUrl = collectionUrls[modulePath];
-
-    if (!collectionUrl) {
-      setData(null);
-      setLoading(false);
-      setError(`未找到图标包: ${prefix}`);
-      return;
-    }
-
     setData(null);
     setLoading(true);
     setError(null);
 
-    fetch(collectionUrl, { signal: controller.signal })
+    fetch(`/iconify-data/collections/${prefix}/manifest.json`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`加载图标包失败: ${response.status}`);
         }
 
-        return (await response.json()) as IconifyJSON;
+        return (await response.json()) as CollectionManifest;
       })
-      .then((json) => {
-        setData(json);
+      .then(async (manifest) => {
+        const chunks = await Promise.all(
+          manifest.chunks.map(async (chunkFile) => {
+            const response = await fetch(`/iconify-data/collections/${prefix}/${chunkFile}`, {
+              signal: controller.signal,
+            });
+
+            if (!response.ok) {
+              throw new Error(`加载图标分片失败: ${response.status}`);
+            }
+
+            return (await response.json()) as CollectionChunk;
+          }),
+        );
+
+        return mergeCollection(manifest, chunks);
+      })
+      .then((collection) => {
+        setData(collection);
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") {

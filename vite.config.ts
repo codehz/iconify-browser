@@ -1,5 +1,8 @@
 import { defineConfig, lazyPlugins } from "vite-plus";
 import react from "@vitejs/plugin-react";
+import { ensureIconifyData } from "./tools/iconifyData.js";
+
+await ensureIconifyData(process.cwd());
 
 // https://vite.dev/config/
 export default defineConfig({
