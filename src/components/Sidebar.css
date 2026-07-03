@@ -77,9 +77,9 @@
 .sidebar-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
   padding: 6px 16px;
+  padding-left: 4px;
   background: none;
   border: none;
   color: var(--text-primary);
@@ -87,6 +87,7 @@
   cursor: pointer;
   text-align: left;
   box-sizing: border-box;
+  gap: 0;
 }
 
 .sidebar-item:hover {
@@ -98,11 +99,46 @@
   color: var(--text-highlight);
 }
 
+.sidebar-favorite-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-right: 2px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0;
+  transition:
+    opacity 0.1s,
+    color 0.1s;
+}
+
+.sidebar-item:hover .sidebar-favorite-button {
+  opacity: 0.5;
+}
+
+.sidebar-item:hover .sidebar-favorite-button:hover {
+  opacity: 1;
+  color: #f5a623;
+}
+
+.sidebar-favorite-button.favorited {
+  opacity: 1;
+  color: #f5a623;
+}
+
 .sidebar-item-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  min-width: 0;
 }
 
 .sidebar-item-count {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GlobalSearchSelection, IconSelection } from "./types";
 import { useCollections } from "./hooks/useCollections";
 import { useCollection } from "./hooks/useCollection";
+import { useFavoriteCollections } from "./hooks/useFavoriteCollections";
 import { Sidebar } from "./components/Sidebar";
 import { IconGrid } from "./components/IconGrid";
 import { DetailPanel } from "./components/DetailPanel";
@@ -24,6 +25,11 @@ function App() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [detailSelection, setDetailSelection] = useState<IconSelection | null>(null);
   const { collections, loading: collectionsLoading } = useCollections();
+  const {
+    favorites: favoritePrefixes,
+    toggleFavorite: toggleFavoriteCollection,
+    isFavorite,
+  } = useFavoriteCollections();
   const {
     data: collectionData,
     loading: collectionLoading,
@@ -161,6 +167,8 @@ function App() {
           selectedPrefix={selectedPrefix}
           onSelectCollection={handleSelectCollection}
           loading={collectionsLoading}
+          isFavorite={isFavorite}
+          onToggleFavorite={toggleFavoriteCollection}
         />
       )}
       <main className="main-area">
@@ -200,6 +208,7 @@ function App() {
             onSelectHit={handleSelectGlobalHit}
             query={globalSearchQuery}
             selectedHit={globalSelection}
+            favoritePrefixes={favoritePrefixes}
           />
         )}
       </main>

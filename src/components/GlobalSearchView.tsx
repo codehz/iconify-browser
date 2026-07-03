@@ -20,6 +20,7 @@ interface GlobalSearchViewProps {
   selectedHit: GlobalSearchSelection | null;
   onQueryChange: (query: string) => void;
   onSelectHit: (selection: GlobalSearchSelection) => void;
+  favoritePrefixes: string[];
 }
 
 export function GlobalSearchView({
@@ -28,8 +29,12 @@ export function GlobalSearchView({
   selectedHit,
   onQueryChange,
   onSelectHit,
+  favoritePrefixes,
 }: GlobalSearchViewProps) {
-  const [selectedPrefixes, setSelectedPrefixes] = useState<Set<string>>(new Set());
+  const [selectedPrefixes, setSelectedPrefixes] = useState<Set<string>>(() => {
+    // Initialize with favorites so search is scoped to favorite collections by default
+    return new Set(favoritePrefixes);
+  });
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterSearch, setFilterSearch] = useState("");
   const filterRef = useRef<HTMLDivElement>(null);
