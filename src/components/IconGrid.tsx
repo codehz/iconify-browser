@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -183,9 +183,18 @@ export function IconGrid({
                 value={selectedCategory}
                 onChange={(e) => onSelectedCategoryChange(e.target.value)}
               >
-                <option value="">全部类别</option>
+                <button className="icon-grid-category-button" type="button">
+                  {createElement("selectedcontent")}
+                </button>
+                <option className="icon-grid-category-option" value="">
+                  全部类别
+                </option>
                 {categoryFilters.map((filter) => (
-                  <option key={filter.category} value={filter.category}>
+                  <option
+                    className="icon-grid-category-option"
+                    key={filter.category}
+                    value={filter.category}
+                  >
                     {filter.category} ({categoryCounts.get(filter.category) ?? 0})
                   </option>
                 ))}
