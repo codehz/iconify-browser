@@ -28,16 +28,14 @@ export function useCollections() {
         return (await response.json()) as Record<string, CollectionRaw>;
       })
       .then((raw) => {
-        const list = Object.entries(raw)
-          .map(([prefix, info]) => ({
-            prefix,
-            name: info.name,
-            total: info.total,
-            authorName: info.author?.name ?? "",
-            licenseTitle: info.license?.title ?? "",
-            category: info.category,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+        const list = Object.entries(raw).map(([prefix, info]) => ({
+          prefix,
+          name: info.name,
+          total: info.total,
+          authorName: info.author?.name ?? "",
+          licenseTitle: info.license?.title ?? "",
+          category: info.category,
+        }));
         setCollections(list);
       })
       .catch((err) => {
