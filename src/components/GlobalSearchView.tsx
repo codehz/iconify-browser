@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GlobalSearchSelection, CollectionItem } from "../types";
+import { useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type { GlobalSearchHit, GlobalSearchSelection, CollectionItem } from "../types";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
 import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
 import { renderIconHTML } from "../utils/iconRenderer";
+import { useElementWidth } from "../hooks/useElementWidth";
 import "./GlobalSearchView.css";
 
-const INITIAL_BATCH = 50;
-const BATCH_SIZE = 50;
+const CARD_MIN_WIDTH = 180;
+const GRID_GAP = 12;
+const ROW_HEIGHT = 100; // card min-height 90 + gap 10
 
 interface GlobalSearchViewProps {
   collections: CollectionItem[];
@@ -29,45 +32,35 @@ export function GlobalSearchView({
     [collections],
   );
   const trimmedQuery = query.trim();
-  const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const hasMore = visibleCount < hits.length;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const gridWidth = useElementWidth(gridRef.current);
 
-  const loadMore = useCallback(() => {
-    setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, hits.length));
-  }, [hits.length]);
+  const columns = useMemo(() => {
+    if (gridWidth <= 0) return 4;
+    return Math.max(1, Math.floor((gridWidth + GRID_GAP) / (CARD_MIN_WIDTH + GRID_GAP)));
+  }, [gridWidth]);
 
-  // Reset visible count when search results change
-  useEffect(() => {
-    setVisibleCount(INITIAL_BATCH);
-  }, [hits]);
+  const rows = useMemo(() => {
+    const result: GlobalSearchHit[][] = [];
+    for (let i = 0; i < hits.length; i += columns) {
+      result.push(hits.slice(i, i + columns));
+    }
+    return result;
+  }, [hits, columns]);
 
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => gridRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 5,
+  });
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          loadMore();
-        }
-      },
-      { rootMargin: "400px" },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, loadMore]);
-
-  // Build status text
   const statusText = useMemo(() => {
     if (loading) return "搜索中...";
     if (isDebouncing) return "输入中...";
     if (hits.length === 0) return "";
-    const shown = Math.min(visibleCount, hits.length);
-    return `找到 ${hits.length} 个结果` + (shown < hits.length ? `（显示前 ${shown} 个）` : "");
-  }, [loading, isDebouncing, hits.length, visibleCount]);
+    return `找到 ${hits.length} 个结果`;
+  }, [loading, isDebouncing, hits.length]);
 
   return (
     <div className="global-search-view">
@@ -94,36 +87,55 @@ export function GlobalSearchView({
           {hits.length === 0 && !loading ? (
             <div className="global-search-empty-state">无匹配图标</div>
           ) : (
-            <div className="global-search-grid">
-              {hits.slice(0, visibleCount).map((hit) => {
-                const collection = collectionsByPrefix.get(hit.prefix);
-                const selection: GlobalSearchSelection = {
-                  kind: "global-search",
-                  prefix: hit.prefix,
-                  name: hit.name,
-                  collectionName: collection?.name ?? hit.prefix,
-                  chunkId: hit.chunkId,
-                  isAlias: hit.isAlias,
-                };
+            <div ref={gridRef} className="global-search-grid">
+              <div
+                className="global-search-virtual-space"
+                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const rowHits = rows[virtualRow.index];
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      className="global-search-row"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: `${virtualRow.size}px`,
+                        transform: `translateY(${virtualRow.start}px)`,
+                        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {rowHits.map((hit) => {
+                        const collection = collectionsByPrefix.get(hit.prefix);
+                        const selection: GlobalSearchSelection = {
+                          kind: "global-search",
+                          prefix: hit.prefix,
+                          name: hit.name,
+                          collectionName: collection?.name ?? hit.prefix,
+                          chunkId: hit.chunkId,
+                          isAlias: hit.isAlias,
+                        };
 
-                return (
-                  <GlobalSearchCard
-                    key={`${hit.prefix}:${hit.chunkId}:${hit.name}`}
-                    isSelected={
-                      selectedHit?.prefix === hit.prefix &&
-                      selectedHit.chunkId === hit.chunkId &&
-                      selectedHit.name === hit.name
-                    }
-                    selection={selection}
-                    onSelect={onSelectHit}
-                  />
-                );
-              })}
-              {hasMore && (
-                <div ref={sentinelRef} className="global-search-sentinel">
-                  <div className="global-search-loading-more">滚动加载更多...</div>
-                </div>
-              )}
+                        return (
+                          <GlobalSearchCard
+                            key={`${hit.prefix}:${hit.chunkId}:${hit.name}`}
+                            isSelected={
+                              selectedHit?.prefix === hit.prefix &&
+                              selectedHit?.chunkId === hit.chunkId &&
+                              selectedHit?.name === hit.name
+                            }
+                            selection={selection}
+                            onSelect={onSelectHit}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>
