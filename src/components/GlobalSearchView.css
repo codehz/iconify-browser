@@ -265,34 +265,24 @@
   min-height: 78px;
   padding: 6px 8px;
   background: transparent;
-  border: 0;
-  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
-  position: relative;
   transition:
-    background 0.12s,
-    color 0.12s;
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .global-search-card:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  background: var(--bg-hover);
+  border-color: var(--border-color);
 }
 
 .global-search-card.active {
   background: var(--bg-active);
-}
-
-.global-search-card.active::before {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 0;
-  width: 2px;
-  border-radius: 999px;
-  background: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 .global-search-card-top {
