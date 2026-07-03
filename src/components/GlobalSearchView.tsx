@@ -1,4 +1,15 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Icon } from "@iconify/react";
+import type { IconifyIcon } from "@iconify/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Button as AriaButton,
+  ListBox,
+  ListBoxItem,
+  Popover,
+  Select,
+  SelectValue,
+  type Key,
+} from "react-aria-components";
 import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -13,6 +24,24 @@ import "./GlobalSearchView.css";
 const CARD_MIN_WIDTH = 180;
 const GRID_GAP = 12;
 const ROW_HEIGHT = 84; // card min-height 78 + gap 6
+
+const filterIcon: IconifyIcon = {
+  body: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.75" d="M3 5h18M6 12h12M10 19h4"/>',
+  width: 24,
+  height: 24,
+};
+
+const chevronIcon: IconifyIcon = {
+  body: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m7 10l5 5l5-5"/>',
+  width: 24,
+  height: 24,
+};
+
+const clearIcon: IconifyIcon = {
+  body: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.75" d="m6 6l12 12M18 6L6 18"/>',
+  width: 24,
+  height: 24,
+};
 
 interface GlobalSearchViewProps {
   collections: CollectionItem[];
@@ -37,7 +66,7 @@ export function GlobalSearchView({
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterSearch, setFilterSearch] = useState("");
-  const filterRef = useRef<HTMLDivElement>(null);
+  const filterSearchInputRef = useRef<HTMLInputElement>(null);
 
   const { hits: allHits, loading, error, isDebouncing } = useGlobalIconSearch(query);
   const collectionsByPrefix = useMemo(
@@ -124,33 +153,45 @@ export function GlobalSearchView({
 
   const hasFilter = selectedPrefixes.size > 0;
 
-  const toggleCollection = useCallback((prefix: string) => {
-    setSelectedPrefixes((prev) => {
-      const next = new Set(prev);
-      if (next.has(prefix)) {
-        next.delete(prefix);
-      } else {
-        next.add(prefix);
-      }
-      return next;
-    });
-  }, []);
+  const selectedCollectionLabel = useMemo(() => {
+    if (!hasFilter) {
+      return "全部图标包";
+    }
 
-  const selectAll = useCallback(() => {
-    const withHits = new Set(
-      collections.filter((c) => (collectionHitCounts.get(c.prefix) ?? 0) > 0).map((c) => c.prefix),
-    );
-    setSelectedPrefixes(withHits);
-  }, [collections, collectionHitCounts]);
+    if (selectedPrefixes.size === 1) {
+      const [prefix] = selectedPrefixes;
+      return collectionsByPrefix.get(prefix)?.name ?? prefix;
+    }
+
+    return `已筛选 ${selectedPrefixes.size} 个`;
+  }, [collectionsByPrefix, hasFilter, selectedPrefixes]);
 
   const clearAll = useCallback(() => {
     setSelectedPrefixes(new Set());
   }, []);
 
-  const handleFilterToggle = useCallback(() => {
-    setFilterOpen((prev) => !prev);
-    setFilterSearch("");
+  const handleFilterOpenChange = useCallback((open: boolean) => {
+    setFilterOpen(open);
+    if (!open) {
+      setFilterSearch("");
+    }
   }, []);
+
+  const handleFilterValueChange = useCallback((keys: Key[]) => {
+    setSelectedPrefixes(new Set(keys.map((key) => String(key))));
+  }, []);
+
+  useEffect(() => {
+    if (!filterOpen) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      filterSearchInputRef.current?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [filterOpen]);
 
   return (
     <div className="global-search-view">
@@ -177,66 +218,89 @@ export function GlobalSearchView({
         <>
           <div className="global-search-status">
             <span>{statusText}</span>
-            <div className="global-search-filter-wrapper" ref={filterRef}>
-              <button
-                className={`global-search-filter-button ${hasFilter ? "has-filter" : ""}`}
-                onClick={handleFilterToggle}
-                type="button"
+            <div className="global-search-filter-controls">
+              <Select
+                aria-label="筛选图标包"
+                className={`global-search-filter-select ${filterOpen ? "is-open" : ""}`}
+                isOpen={filterOpen}
+                onChange={handleFilterValueChange}
+                onOpenChange={handleFilterOpenChange}
+                selectionMode="multiple"
+                value={Array.from(selectedPrefixes)}
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path
-                    d="M1 2h12M3 7h8M5 12h4"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
+                <AriaButton
+                  className={`global-search-filter-button ${hasFilter ? "has-filter" : ""}`}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className="global-search-filter-button-icon"
+                    icon={filterIcon}
                   />
-                </svg>
-                <span>{hasFilter ? `已选 ${selectedPrefixes.size} 个` : "全部图标包"}</span>
-              </button>
-              {filterOpen && (
-                <>
-                  <div className="global-search-filter-backdrop" onClick={handleFilterToggle} />
-                  <div className="global-search-filter-dropdown">
-                    <div className="global-search-filter-actions">
-                      <button type="button" onClick={selectAll}>
-                        全选
-                      </button>
-                      <button type="button" onClick={clearAll}>
-                        清除
-                      </button>
-                    </div>
+                  <SelectValue className="global-search-filter-button-label">
+                    {selectedCollectionLabel}
+                  </SelectValue>
+                  <Icon
+                    aria-hidden="true"
+                    className="global-search-filter-button-chevron"
+                    icon={chevronIcon}
+                  />
+                </AriaButton>
+                <Popover className="global-search-filter-popover" offset={8} placement="bottom end">
+                  <div className="global-search-filter-panel">
                     <input
+                      ref={filterSearchInputRef}
                       className="global-search-filter-search"
                       type="text"
                       placeholder="搜索图标包..."
                       value={filterSearch}
-                      onChange={(e) => setFilterSearch(e.target.value)}
+                      onChange={(event) => setFilterSearch(event.target.value)}
                     />
                     <ScrollArea className="global-search-filter-list">
-                      {filteredCollections.map((col) => {
-                        const checked = selectedPrefixes.has(col.prefix);
-                        const hasMatch = col.matchCount > 0;
-                        return (
-                          <label
-                            key={col.prefix}
-                            className={`global-search-filter-item ${checked ? "checked" : ""} ${!hasMatch ? "no-match" : ""}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleCollection(col.prefix)}
-                            />
-                            <span className="global-search-filter-item-name">{col.name}</span>
-                            <span className="global-search-filter-item-count">
-                              {col.matchCount}
-                            </span>
-                          </label>
-                        );
-                      })}
+                      <ListBox
+                        className="global-search-filter-listbox"
+                        renderEmptyState={() => (
+                          <div className="global-search-filter-empty">无匹配图标包</div>
+                        )}
+                      >
+                        {filteredCollections.map((col) => {
+                          const hasMatch = col.matchCount > 0;
+                          return (
+                            <ListBoxItem
+                              className={`global-search-filter-item ${!hasMatch ? "no-match" : ""}`}
+                              id={col.prefix}
+                              key={col.prefix}
+                              textValue={`${col.name} ${col.prefix}`}
+                            >
+                              <span className="global-search-filter-item-indicator" />
+                              <span className="global-search-filter-item-copy">
+                                <span className="global-search-filter-item-name">{col.name}</span>
+                                <span className="global-search-filter-item-prefix">
+                                  {col.prefix}
+                                </span>
+                              </span>
+                              <span className="global-search-filter-item-count">
+                                {col.matchCount}
+                              </span>
+                            </ListBoxItem>
+                          );
+                        })}
+                      </ListBox>
                     </ScrollArea>
                   </div>
-                </>
-              )}
+                </Popover>
+              </Select>
+              <AriaButton
+                className="global-search-filter-clear-button"
+                isDisabled={!hasFilter}
+                onPress={clearAll}
+              >
+                <Icon
+                  aria-hidden="true"
+                  className="global-search-filter-clear-icon"
+                  icon={clearIcon}
+                />
+                <span>清除筛选</span>
+              </AriaButton>
             </div>
           </div>
           {hits.length === 0 && !loading ? (
