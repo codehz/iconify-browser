@@ -58,6 +58,22 @@
   padding: 16px;
 }
 
+.icon-grid-virtualizer {
+  width: 100%;
+}
+
+.icon-grid-virtualizer-inner {
+  position: relative;
+  width: 100%;
+}
+
+.icon-grid-row {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+}
+
 .icon-grid-filters {
   display: flex;
   align-items: center;
@@ -143,8 +159,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 4px;
   padding: 8px 4px;
+  min-height: 68px;
   background: none;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -179,6 +197,7 @@
 
 .icon-grid-label {
   font-size: 10px;
+  line-height: 12px;
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
