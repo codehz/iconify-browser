@@ -9,7 +9,7 @@ import "./GlobalSearchView.css";
 
 const CARD_MIN_WIDTH = 180;
 const GRID_GAP = 12;
-const ROW_HEIGHT = 100; // card min-height 90 + gap 10
+const ROW_HEIGHT = 84; // card min-height 78 + gap 6
 
 interface GlobalSearchViewProps {
   collections: CollectionItem[];
@@ -165,28 +165,42 @@ function GlobalSearchCard({ isSelected, selection, onSelect }: GlobalSearchCardP
       className={`global-search-card ${isSelected ? "active" : ""}`}
       onClick={() => onSelect(selection)}
       type="button"
+      title={`${selection.prefix}:${selection.name}`}
     >
-      <div className="global-search-card-preview">
-        {iconHtml ? (
-          <div className="global-search-card-icon" dangerouslySetInnerHTML={{ __html: iconHtml }} />
-        ) : (
-          <div
-            className={`global-search-card-placeholder ${loading ? "loading" : ""} ${
-              error ? "error" : ""
-            }`}
-          >
-            {error ? "!" : ""}
-          </div>
-        )}
-      </div>
-      <div className="global-search-card-body">
-        <span className="global-search-card-name">{selection.name}</span>
-        <div className="global-search-card-meta">
-          <span className="global-search-card-prefix">{selection.prefix}</span>
-          {selection.isAlias ? <span className="global-search-card-alias">Alias</span> : null}
+      <div className="global-search-card-top">
+        <div className="global-search-card-preview">
+          {iconHtml ? (
+            <div
+              className="global-search-card-icon"
+              dangerouslySetInnerHTML={{ __html: iconHtml }}
+            />
+          ) : (
+            <div
+              className={`global-search-card-placeholder ${loading ? "loading" : ""} ${
+                error ? "error" : ""
+              }`}
+            >
+              {error ? "!" : ""}
+            </div>
+          )}
         </div>
-        <span className="global-search-card-collection">{selection.collectionName}</span>
+        <div className="global-search-card-info">
+          <div className="global-search-card-source">
+            <span className="global-search-card-collection" title={selection.collectionName}>
+              {selection.collectionName}
+            </span>
+          </div>
+          <div className="global-search-card-meta">
+            <span className="global-search-card-prefix" title={selection.prefix}>
+              {selection.prefix}
+            </span>
+            {selection.isAlias ? <span className="global-search-card-alias">Alias</span> : null}
+          </div>
+        </div>
       </div>
+      <span className="global-search-card-name" title={selection.name}>
+        {selection.name}
+      </span>
     </button>
   );
 }
