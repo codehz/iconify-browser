@@ -3,7 +3,7 @@ import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { IconifyJSON } from "@iconify/types";
-import { Button as AriaButton } from "react-aria-components";
+import { Button as AriaButton, Tag, TagGroup, TagList } from "react-aria-components";
 import { AriaTextField } from "./AriaTextField";
 import { AriaSelectComponent, type AriaSelectOption } from "./AriaSelect";
 import { useElementWidth } from "../hooks/useElementWidth";
@@ -46,6 +46,7 @@ interface CategoryOption extends AriaSelectOption<string> {
 }
 
 const ALL_CATEGORIES_ID = "__all__";
+const DEFAULT_SUFFIX_TAG_ID = "__default__";
 
 export function IconGrid({
   collection,
@@ -212,25 +213,29 @@ export function IconGrid({
       {supportsSuffixPreview || supportsCategoryPreview ? (
         <div className="icon-grid-filters">
           {supportsSuffixPreview ? (
-            <div className="icon-grid-filter-group">
-              {suffixEntries.map(([suffix, label]) => {
-                const count = suffixCounts.get(suffix) ?? 0;
-                const isActive = selectedSuffix === suffix;
-                return (
-                  <AriaButton
-                    key={suffix || "default"}
-                    className={`icon-grid-filter ${isActive ? "active" : ""}`}
-                    isDisabled={count === 0 && !isActive}
-                    onPress={() =>
-                      onSelectedSuffixChange(selectedSuffix === suffix ? null : suffix)
-                    }
-                  >
-                    <span>{label}</span>
-                    <span className="icon-grid-filter-count">{count}</span>
-                  </AriaButton>
-                );
-              })}
-            </div>
+            <TagGroup aria-label="图标后缀筛选">
+              <TagList className="icon-grid-filter-group">
+                {suffixEntries.map(([suffix, label]) => {
+                  const count = suffixCounts.get(suffix) ?? 0;
+                  const isActive = selectedSuffix === suffix;
+                  return (
+                    <Tag
+                      id={suffix || DEFAULT_SUFFIX_TAG_ID}
+                      key={suffix || DEFAULT_SUFFIX_TAG_ID}
+                      className={`icon-grid-filter ${isActive ? "active" : ""}`}
+                      isDisabled={count === 0 && !isActive}
+                      onAction={() =>
+                        onSelectedSuffixChange(selectedSuffix === suffix ? null : suffix)
+                      }
+                      textValue={label}
+                    >
+                      <span>{label}</span>
+                      <span className="icon-grid-filter-count">{count}</span>
+                    </Tag>
+                  );
+                })}
+              </TagList>
+            </TagGroup>
           ) : null}
           {supportsCategoryPreview ? (
             <label className="icon-grid-category-filter">
