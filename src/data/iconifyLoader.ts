@@ -237,6 +237,7 @@ export function searchGlobalSearchIndex(
   index: GlobalSearchIndex,
   query: string,
   limit = Number.POSITIVE_INFINITY,
+  prefixes?: Set<string>,
 ): GlobalSearchHit[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery || limit <= 0) {
@@ -263,8 +264,14 @@ export function searchGlobalSearchIndex(
       continue;
     }
 
+    const prefix = index.prefixes[currentRun[2]];
+
+    if (prefixes && !prefixes.has(prefix)) {
+      continue;
+    }
+
     hits.push({
-      prefix: index.prefixes[currentRun[2]],
+      prefix,
       name: index.names[indexOffset],
       chunkId: currentRun[3],
       isAlias: currentRun[4] === 1,
@@ -281,14 +288,14 @@ export function searchGlobalSearchIndex(
 export async function searchIcons(
   query: string,
   limit = Number.POSITIVE_INFINITY,
-  options?: LoadOptions,
+  options?: LoadOptions & { prefixes?: Set<string> },
 ): Promise<GlobalSearchHit[]> {
   if (!query.trim() || limit <= 0) {
     return [];
   }
 
   const index = await loadGlobalSearchIndex(options);
-  return searchGlobalSearchIndex(index, query, limit);
+  return searchGlobalSearchIndex(index, query, limit, options?.prefixes);
 }
 
 export async function loadIconBySearchHit(
