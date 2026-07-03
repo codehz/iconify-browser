@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { IconifyJSON } from "@iconify/types";
 import { useElementWidth } from "../hooks/useElementWidth";
@@ -23,7 +23,13 @@ interface IconGridProps {
   collection: IconifyJSON;
   collectionName: string;
   collectionPrefix: string;
+  searchQuery: string;
+  selectedSuffix: string | null;
+  selectedCategory: string;
   selectedIcon: string | null;
+  onSearchQueryChange: (query: string) => void;
+  onSelectedSuffixChange: (suffix: string | null) => void;
+  onSelectedCategoryChange: (category: string) => void;
   onSelectIcon: (name: string) => void;
 }
 
@@ -31,15 +37,17 @@ export function IconGrid({
   collection,
   collectionName,
   collectionPrefix,
+  searchQuery,
+  selectedSuffix,
+  selectedCategory,
   selectedIcon,
+  onSearchQueryChange,
+  onSelectedSuffixChange,
+  onSelectedCategoryChange,
   onSelectIcon,
 }: IconGridProps) {
-  const [search, setSearch] = useState("");
-  const [selectedSuffix, setSelectedSuffix] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState("");
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null);
-  const deferredSearch = useDeferredValue(search);
 
   const allNames = useMemo(() => getIconNames(collection), [collection]);
   const suffixEntries = useMemo(() => getCollectionSuffixEntries(collection), [collection]);
@@ -56,20 +64,14 @@ export function IconGrid({
       })),
     [categoryEntries, collection.aliases],
   );
-
-  useEffect(() => {
-    setSelectedSuffix(null);
-    setSelectedCategory("");
-  }, [collectionPrefix]);
-
   const searchFilteredNames = useMemo(() => {
-    if (!deferredSearch) {
+    if (!searchQuery) {
       return allNames;
     }
 
-    const query = deferredSearch.toLowerCase();
+    const query = searchQuery.toLowerCase();
     return allNames.filter((name) => name.toLowerCase().includes(query));
-  }, [allNames, deferredSearch]);
+  }, [allNames, searchQuery]);
 
   const suffixCounts = useMemo(
     () => countIconsBySuffix(searchFilteredNames, suffixEntries),
@@ -122,7 +124,7 @@ export function IconGrid({
 
   useEffect(() => {
     scrollElement?.scrollTo({ top: 0 });
-  }, [collectionPrefix, deferredSearch, scrollElement, selectedCategory, selectedSuffix]);
+  }, [collectionPrefix, scrollElement, searchQuery, selectedCategory, selectedSuffix]);
 
   return (
     <div className="icon-grid-container">
@@ -135,9 +137,9 @@ export function IconGrid({
         </div>
         <input
           type="text"
-          placeholder="搜索图标..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder="在当前图标包中搜索"
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
           className="icon-grid-search-input"
         />
       </div>
@@ -154,7 +156,7 @@ export function IconGrid({
                     type="button"
                     className={`icon-grid-filter ${isActive ? "active" : ""}`}
                     onClick={() =>
-                      setSelectedSuffix((current) => (current === suffix ? null : suffix))
+                      onSelectedSuffixChange(selectedSuffix === suffix ? null : suffix)
                     }
                     disabled={count === 0 && !isActive}
                   >
@@ -171,7 +173,7 @@ export function IconGrid({
               <select
                 className="icon-grid-category-select"
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => onSelectedCategoryChange(e.target.value)}
               >
                 <option value="">全部类别</option>
                 {categoryFilters.map((filter) => (
@@ -186,7 +188,7 @@ export function IconGrid({
       ) : null}
       <div className="icon-grid-body" ref={setScrollElement}>
         {fullyFilteredNames.length === 0 ? (
-          <div className="icon-grid-empty">{search ? "无匹配图标" : "暂无图标"}</div>
+          <div className="icon-grid-empty">{searchQuery ? "无匹配图标" : "暂无图标"}</div>
         ) : (
           <div className="icon-grid-virtualizer" ref={setViewportElement}>
             <div

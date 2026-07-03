@@ -34,7 +34,7 @@ export function Sidebar({
       <div className="sidebar-search">
         <input
           type="text"
-          placeholder="搜索图标包..."
+          placeholder="筛选图标包"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="sidebar-search-input"

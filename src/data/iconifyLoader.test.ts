@@ -92,44 +92,79 @@ describe("iconifyLoader", () => {
   });
 
   it("loads a single chunk for a search hit and keeps it renderable", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        const url = getRequestUrl(input);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = getRequestUrl(input);
 
-        if (url.endsWith("/collections/demo/manifest.json")) {
-          return createJsonResponse({
-            version: 3,
-            prefix: "demo",
-            iconCount: 1,
-            aliasCount: 1,
-            base: { width: 24, height: 24 },
-            chunks: [{ id: 0, file: "chunk-0.json", iconCount: 1, aliasCount: 1 }],
-          });
-        }
+      if (url.endsWith("/collections/demo/manifest.json")) {
+        return createJsonResponse({
+          version: 3,
+          prefix: "demo",
+          iconCount: 1,
+          aliasCount: 1,
+          base: { width: 24, height: 24 },
+          chunks: [{ id: 0, file: "chunk-0.json", iconCount: 1, aliasCount: 1 }],
+        });
+      }
 
-        if (url.endsWith("/collections/demo/chunk-0.json")) {
-          return createJsonResponse({
-            icons: {
-              user: {
-                body: "<path d='M12 2a5 5 0 0 1 0 10a5 5 0 0 1 0-10m0 12c4 0 8 2 8 4v4H4v-4c0-2 4-4 8-4' />",
-              },
+      if (url.endsWith("/collections/demo/chunk-0.json")) {
+        return createJsonResponse({
+          icons: {
+            user: {
+              body: "<path d='M12 2a5 5 0 0 1 0 10a5 5 0 0 1 0-10m0 12c4 0 8 2 8 4v4H4v-4c0-2 4-4 8-4' />",
             },
-            aliases: {
-              "user-alt": { parent: "user" },
-            },
-          });
-        }
+          },
+          aliases: {
+            "user-alt": { parent: "user" },
+          },
+        });
+      }
 
-        throw new Error(`Unexpected fetch: ${url}`);
-      }),
-    );
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
 
     const collection = await loadIconBySearchHit("demo", 0);
 
     expect(Object.keys(collection.icons)).toEqual(["user"]);
     expect(collection.aliases?.["user-alt"]).toEqual({ parent: "user" });
     expect(renderIconHTML(collection, "user-alt")).toContain("<svg");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reuses manifest and chunk caches across repeated search-hit loads", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = getRequestUrl(input);
+
+      if (url.endsWith("/collections/demo/manifest.json")) {
+        return createJsonResponse({
+          version: 3,
+          prefix: "demo",
+          iconCount: 1,
+          aliasCount: 0,
+          base: { width: 24, height: 24 },
+          chunks: [{ id: 0, file: "chunk-0.json", iconCount: 1, aliasCount: 0 }],
+        });
+      }
+
+      if (url.endsWith("/collections/demo/chunk-0.json")) {
+        return createJsonResponse({
+          icons: {
+            bell: { body: "<path d='M12 2l4 8H8z' />" },
+          },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await loadIconBySearchHit("demo", 0);
+    const second = await loadIconBySearchHit("demo", 0);
+
+    expect(first.icons.bell).toEqual(second.icons.bell);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("searches the global index with case-insensitive substring matching", async () => {

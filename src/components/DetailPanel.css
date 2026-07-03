@@ -43,6 +43,36 @@
   color: var(--text-primary);
 }
 
+.detail-panel-action {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.detail-panel-action:hover {
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.detail-panel-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.detail-panel-state-error {
+  color: var(--error-color);
+}
+
 .detail-panel-content {
   display: flex;
   gap: 24px;

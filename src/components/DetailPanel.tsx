@@ -1,15 +1,18 @@
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
 import { useLocalStorage } from "foxact/use-local-storage";
+import type { IconSelection } from "../types";
+import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
 import { renderIconHTML } from "../utils/iconRenderer";
 import "./DetailPanel.css";
 
 interface DetailPanelProps {
-  iconName: string | null;
+  selection: IconSelection | null;
   collection: IconifyJSON | null;
-  collectionName: string;
-  collectionPrefix: string;
+  collectionError?: string | null;
+  collectionLoading?: boolean;
   onClose: () => void;
+  onOpenCollection?: (selection: IconSelection) => void;
 }
 
 const DETAIL_FORMAT_STORAGE_KEY = "iconify-browser:detail-format";
@@ -18,11 +21,12 @@ const DEFAULT_FORMAT_ID = "iconify";
 type NameFormatId = "iconify" | "name" | "component" | "tailwind" | "unocss" | "import";
 
 export function DetailPanel({
-  iconName,
+  selection,
   collection,
-  collectionName,
-  collectionPrefix,
+  collectionError = null,
+  collectionLoading = false,
   onClose,
+  onOpenCollection,
 }: DetailPanelProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [selectedFormatId, setSelectedFormatId] = useLocalStorage<NameFormatId>(
@@ -30,11 +34,24 @@ export function DetailPanel({
     DEFAULT_FORMAT_ID,
   );
   const copyResetTimerRef = useRef<number | null>(null);
+  const shouldLoadSearchHit = selection?.kind === "global-search" && !collection;
+  const {
+    data: loadedCollection,
+    loading,
+    error,
+  } = useSearchHitCollection(
+    shouldLoadSearchHit ? selection.prefix : null,
+    shouldLoadSearchHit ? selection.chunkId : null,
+  );
+  const resolvedCollection = collection ?? loadedCollection;
+  const iconName = selection?.name ?? null;
+  const collectionPrefix = selection?.prefix ?? "";
+  const collectionName = selection?.collectionName ?? "";
 
   const iconHtml = useMemo(() => {
-    if (!iconName || !collection) return null;
-    return renderIconHTML(collection, iconName);
-  }, [iconName, collection]);
+    if (!iconName || !resolvedCollection) return null;
+    return renderIconHTML(resolvedCollection, iconName);
+  }, [iconName, resolvedCollection]);
 
   const nameFormats = useMemo(
     () =>
@@ -91,12 +108,13 @@ export function DetailPanel({
     }
   }, [nameFormats, selectedFormatId, setSelectedFormatId]);
 
-  if (!iconName || !collection) return null;
+  if (!selection) return null;
 
-  const iconData = collection.icons[iconName];
-  const aliasData = !iconData && collection.aliases ? collection.aliases[iconName] : null;
-  const width = iconData?.width ?? collection.width ?? 24;
-  const height = iconData?.height ?? collection.height ?? 24;
+  const iconData = resolvedCollection?.icons[iconName ?? ""];
+  const aliasData =
+    !iconData && resolvedCollection?.aliases ? resolvedCollection.aliases[iconName ?? ""] : null;
+  const width = iconData?.width ?? resolvedCollection?.width ?? 24;
+  const height = iconData?.height ?? resolvedCollection?.height ?? 24;
   const selectedFormat =
     nameFormats.find((format) => format.id === selectedFormatId) ?? nameFormats[0];
 
@@ -118,12 +136,6 @@ export function DetailPanel({
     );
   };
 
-  const handleCopySvg = () => {
-    if (iconHtml) {
-      handleCopy(iconHtml, "svg");
-    }
-  };
-
   return (
     <div className="detail-panel">
       <div className="detail-panel-header">
@@ -131,73 +143,139 @@ export function DetailPanel({
           {collectionPrefix}:{iconName}
         </span>
         <span className="detail-panel-breadcrumb">{collectionName}</span>
-        <button className="detail-panel-close" onClick={onClose}>
+        {selection.kind === "global-search" ? (
+          <button
+            className="detail-panel-action"
+            onClick={() => onOpenCollection?.(selection)}
+            type="button"
+          >
+            打开所在图标包
+          </button>
+        ) : null}
+        <button className="detail-panel-close" onClick={onClose} type="button">
           ×
         </button>
       </div>
-      <div className="detail-panel-content">
-        <div className="detail-preview-column">
-          <div className="detail-preview">
-            {iconHtml && (
-              <div className="detail-preview-icon" dangerouslySetInnerHTML={{ __html: iconHtml }} />
-            )}
-          </div>
-          <div className="detail-preview-size">
-            <span>W: {width}</span>
-            <span>H: {height}</span>
-          </div>
+      {loading || (selection.kind === "browse" && collectionLoading) ? (
+        <div className="detail-panel-state">加载图标详情...</div>
+      ) : error || (selection.kind === "browse" && collectionError) ? (
+        <div className="detail-panel-state detail-panel-state-error">
+          {error ?? collectionError}
         </div>
-        <div className="detail-info">
-          <div className="detail-copy-section">
-            <select
-              className="detail-format-select"
-              id="detail-format-select"
-              value={selectedFormat.id}
-              onChange={(event) => {
-                if (isNameFormatId(event.target.value)) {
-                  setSelectedFormatId(event.target.value);
-                }
-              }}
+      ) : !resolvedCollection || !iconHtml ? (
+        <div className="detail-panel-state detail-panel-state-error">图标详情不可用</div>
+      ) : (
+        <DetailPanelContent
+          aliasData={aliasData}
+          collectionPrefix={collectionPrefix}
+          copiedField={copiedField}
+          height={height}
+          iconHtml={iconHtml}
+          nameFormats={nameFormats}
+          onCopy={handleCopy}
+          selectedFormat={selectedFormat}
+          selectedFormatId={selectedFormatId}
+          setSelectedFormatId={setSelectedFormatId}
+          width={width}
+        />
+      )}
+    </div>
+  );
+}
+
+interface DetailPanelContentProps {
+  aliasData: NonNullable<IconifyJSON["aliases"]>[string] | null;
+  collectionPrefix: string;
+  copiedField: string | null;
+  height: number;
+  iconHtml: string;
+  nameFormats: Array<{ id: NameFormatId; label: string; value: string }>;
+  onCopy: (value: string, field: string) => void;
+  selectedFormat: { id: NameFormatId; label: string; value: string };
+  selectedFormatId: NameFormatId;
+  setSelectedFormatId: (value: NameFormatId) => void;
+  width: number;
+}
+
+function DetailPanelContent({
+  aliasData,
+  collectionPrefix,
+  copiedField,
+  height,
+  iconHtml,
+  nameFormats,
+  onCopy,
+  selectedFormat,
+  selectedFormatId,
+  setSelectedFormatId,
+  width,
+}: DetailPanelContentProps) {
+  return (
+    <div className="detail-panel-content">
+      <div className="detail-preview-column">
+        <div className="detail-preview">
+          <div className="detail-preview-icon" dangerouslySetInnerHTML={{ __html: iconHtml }} />
+        </div>
+        <div className="detail-preview-size">
+          <span>W: {width}</span>
+          <span>H: {height}</span>
+        </div>
+      </div>
+      <div className="detail-info">
+        <div className="detail-copy-section">
+          <select
+            className="detail-format-select"
+            id="detail-format-select"
+            value={selectedFormatId}
+            onChange={(event) => {
+              if (isNameFormatId(event.target.value)) {
+                setSelectedFormatId(event.target.value);
+              }
+            }}
+          >
+            <button className="detail-format-button" type="button">
+              {createElement("selectedcontent")}
+            </button>
+            {nameFormats.map((format) => (
+              <option className="detail-format-option" key={format.id} value={format.id}>
+                <span className="detail-format-option-content">
+                  <span className="detail-option-label">{format.label}</span>
+                  <span className="detail-option-value">{format.value}</span>
+                </span>
+              </option>
+            ))}
+          </select>
+          <div className="detail-copy-actions">
+            <button
+              className="detail-copy-button"
+              onClick={() => onCopy(selectedFormat.value, selectedFormat.id)}
+              type="button"
             >
-              <button className="detail-format-button" type="button">
-                {createElement("selectedcontent")}
-              </button>
-              {nameFormats.map((format) => (
-                <option className="detail-format-option" key={format.id} value={format.id}>
-                  <span className="detail-format-option-content">
-                    <span className="detail-option-label">{format.label}</span>
-                    <span className="detail-option-value">{format.value}</span>
-                  </span>
-                </option>
-              ))}
-            </select>
-            <div className="detail-copy-actions">
-              <button
-                className="detail-copy-button"
-                onClick={() => handleCopy(selectedFormat.value, selectedFormat.id)}
-              >
-                {copiedField === selectedFormat.id ? "已复制" : "复制当前名称"}
-              </button>
-            </div>
-          </div>
-          {aliasData && (
-            <div className="detail-meta">
-              <div className="detail-info-row">
-                <span className="detail-info-label">别名</span>
-                <span className="detail-info-value">{aliasData.parent}</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="detail-svg">
-          <div className="detail-svg-header">
-            <span>SVG</span>
-            <button className="detail-svg-copy" onClick={handleCopySvg}>
-              {copiedField === "svg" ? "已复制" : "复制"}
+              {copiedField === selectedFormat.id ? "已复制" : "复制当前名称"}
             </button>
           </div>
-          <pre className="detail-svg-code">{iconHtml}</pre>
         </div>
+        <div className="detail-meta">
+          <div className="detail-info-row">
+            <span className="detail-info-label">前缀</span>
+            <span className="detail-info-value">{collectionPrefix}</span>
+          </div>
+          {aliasData ? (
+            <div className="detail-info-row">
+              <span className="detail-info-label">别名</span>
+              <span className="detail-info-value">{aliasData.parent}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div className="detail-svg">
+        <div className="detail-svg-header">
+          <span>SVG</span>
+          <button className="detail-svg-copy" onClick={() => onCopy(iconHtml, "svg")} type="button">
+            {copiedField === "svg" ? "已复制" : "复制"}
+          </button>
+        </div>
+        <pre className="detail-svg-code">{iconHtml}</pre>
       </div>
     </div>
   );

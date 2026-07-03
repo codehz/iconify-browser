@@ -13,6 +13,37 @@
   background: var(--bg-primary);
 }
 
+.main-view-switcher {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-primary) 84%, black);
+  flex-shrink: 0;
+}
+
+.main-view-button {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.main-view-button:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-color);
+}
+
+.main-view-button.active {
+  background: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
+  border-color: var(--accent-color);
+  color: var(--text-highlight);
+}
+
 .welcome {
   display: flex;
   flex-direction: column;

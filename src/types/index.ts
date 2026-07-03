@@ -15,6 +15,24 @@ export interface SelectedIconInfo {
   collectionName: string;
 }
 
+export interface BrowseSelection {
+  kind: "browse";
+  prefix: string;
+  name: string;
+  collectionName: string;
+}
+
+export interface GlobalSearchSelection {
+  kind: "global-search";
+  prefix: string;
+  name: string;
+  collectionName: string;
+  chunkId: number;
+  isAlias: boolean;
+}
+
+export type IconSelection = BrowseSelection | GlobalSearchSelection;
+
 export interface CollectionChunk {
   icons: NonNullable<IconifyJSON["icons"]>;
   aliases?: NonNullable<IconifyJSON["aliases"]>;
