@@ -36,6 +36,7 @@ function App() {
   );
   const browseSelection = detailSelection?.kind === "browse" ? detailSelection : null;
   const globalSelection = detailSelection?.kind === "global-search" ? detailSelection : null;
+  const isGlobalSearch = activeMainView === "global-search";
 
   const handleSelectCollection = useCallback((prefix: string) => {
     setSelectedPrefix(prefix);
@@ -90,31 +91,80 @@ function App() {
   }, [collections, selectedPrefix]);
 
   return (
-    <div className="app">
-      <Sidebar
-        collections={collections}
-        selectedPrefix={selectedPrefix}
-        onSelectCollection={handleSelectCollection}
-        loading={collectionsLoading}
-      />
+    <div className={`app ${isGlobalSearch ? "global-search-mode" : ""}`}>
+      <button
+        className="view-toggle"
+        onClick={() => handleSwitchView(isGlobalSearch ? "browse" : "global-search")}
+        type="button"
+        title={isGlobalSearch ? "切换到图标包浏览" : "切换到全局搜索"}
+      >
+        <svg className="view-toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          {isGlobalSearch ? (
+            <g>
+              <rect
+                x="1"
+                y="1"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="9"
+                y="1"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="1"
+                y="9"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="9"
+                y="9"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+            </g>
+          ) : (
+            <g>
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+              <line
+                x1="10.5"
+                y1="10.5"
+                x2="14"
+                y2="14"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </g>
+          )}
+        </svg>
+        <span>{isGlobalSearch ? "图标包浏览" : "全局搜索"}</span>
+      </button>
+      {!isGlobalSearch && (
+        <Sidebar
+          collections={collections}
+          selectedPrefix={selectedPrefix}
+          onSelectCollection={handleSelectCollection}
+          loading={collectionsLoading}
+        />
+      )}
       <main className="main-area">
-        <div className="main-view-switcher">
-          <button
-            className={`main-view-button ${activeMainView === "browse" ? "active" : ""}`}
-            onClick={() => handleSwitchView("browse")}
-            type="button"
-          >
-            浏览图标包
-          </button>
-          <button
-            className={`main-view-button ${activeMainView === "global-search" ? "active" : ""}`}
-            onClick={() => handleSwitchView("global-search")}
-            type="button"
-          >
-            全局搜索
-          </button>
-        </div>
-        {activeMainView === "browse" ? (
+        {!isGlobalSearch ? (
           !selectedPrefix ? (
             <div className="welcome">
               <h1>Iconify Browser</h1>
