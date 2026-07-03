@@ -105,9 +105,11 @@
   cursor: pointer;
 }
 
-.icon-grid-filter:hover:not(:disabled) {
+.icon-grid-filter[data-hovered]:not([data-disabled]),
+.icon-grid-filter[data-focus-visible]:not([data-disabled]) {
   border-color: var(--accent-color);
   color: var(--text-primary);
+  outline: none;
 }
 
 .icon-grid-filter.active {
@@ -116,7 +118,7 @@
   color: var(--text-primary);
 }
 
-.icon-grid-filter:disabled {
+.icon-grid-filter[data-disabled] {
   opacity: 0.45;
   cursor: default;
 }
@@ -270,9 +272,11 @@
   transition: background 0.15s;
 }
 
-.icon-grid-item:hover {
+.icon-grid-item[data-hovered],
+.icon-grid-item[data-focus-visible] {
   background: var(--bg-hover);
   border-color: var(--border-color);
+  outline: none;
 }
 
 .icon-grid-item.active {

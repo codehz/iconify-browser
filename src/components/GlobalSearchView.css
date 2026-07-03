@@ -85,8 +85,8 @@
     transform 0.12s;
 }
 
-.global-search-filter-button:hover,
-.global-search-filter-clear-button:hover:not([data-disabled]) {
+.global-search-filter-button[data-hovered],
+.global-search-filter-clear-button[data-hovered]:not([data-disabled]) {
   color: var(--text-primary);
   border-color: var(--accent-color);
   background: color-mix(in srgb, var(--accent-color) 8%, transparent);
@@ -354,9 +354,11 @@
     border-color 0.15s;
 }
 
-.global-search-card:hover {
+.global-search-card[data-hovered],
+.global-search-card[data-focus-visible] {
   background: var(--bg-hover);
   border-color: var(--border-color);
+  outline: none;
 }
 
 .global-search-card.active {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button as AriaButton } from "react-aria-components";
 import type { CollectionItem } from "../types";
 import { ScrollArea } from "./ScrollArea";
 import "./Sidebar.css";
@@ -126,18 +127,11 @@ function SidebarItem({
   onToggleFavorite,
 }: SidebarItemProps) {
   return (
-    <button
-      className={`sidebar-item ${isActive ? "active" : ""}`}
-      onClick={() => onSelect(collection.prefix)}
-    >
-      <button
+    <div className={`sidebar-item-row ${isActive ? "active" : ""}`}>
+      <AriaButton
         className={`sidebar-favorite-button ${isFav ? "favorited" : ""}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleFavorite(collection.prefix);
-        }}
-        type="button"
-        title={isFav ? "取消收藏" : "收藏"}
+        onPress={() => onToggleFavorite(collection.prefix)}
+        aria-label={isFav ? "取消收藏" : "收藏"}
       >
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path
@@ -149,9 +143,11 @@ function SidebarItem({
             strokeLinejoin="round"
           />
         </svg>
-      </button>
-      <span className="sidebar-item-name">{collection.name}</span>
-      <span className="sidebar-item-count">{collection.total}</span>
-    </button>
+      </AriaButton>
+      <AriaButton className="sidebar-item" onPress={() => onSelect(collection.prefix)}>
+        <span className="sidebar-item-name">{collection.name}</span>
+        <span className="sidebar-item-count">{collection.total}</span>
+      </AriaButton>
+    </div>
   );
 }

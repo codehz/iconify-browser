@@ -36,10 +36,13 @@
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
+  border-radius: var(--radius-sm);
 }
 
-.detail-panel-close:hover {
+.detail-panel-close[data-hovered],
+.detail-panel-close[data-focus-visible] {
   color: var(--text-primary);
+  outline: none;
 }
 
 .detail-panel-action {
@@ -53,9 +56,11 @@
   cursor: pointer;
 }
 
-.detail-panel-action:hover {
+.detail-panel-action[data-hovered],
+.detail-panel-action[data-focus-visible] {
   border-color: var(--accent-color);
   color: var(--text-primary);
+  outline: none;
 }
 
 .detail-panel-state {
@@ -294,8 +299,10 @@
   cursor: pointer;
 }
 
-.detail-copy-button:hover {
+.detail-copy-button[data-hovered],
+.detail-copy-button[data-focus-visible] {
   background: var(--bg-hover);
+  outline: none;
 }
 
 .detail-svg {
@@ -328,8 +335,10 @@
   cursor: pointer;
 }
 
-.detail-svg-copy:hover {
+.detail-svg-copy[data-hovered],
+.detail-svg-copy[data-focus-visible] {
   background: var(--bg-hover);
+  outline: none;
 }
 
 .detail-svg-code {

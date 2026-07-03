@@ -77,9 +77,9 @@
 .sidebar-item {
   display: flex;
   align-items: center;
+  display: flex;
   width: 100%;
-  padding: 6px 16px;
-  padding-left: 4px;
+  padding: 6px 16px 6px 28px;
   background: none;
   border: none;
   color: var(--text-primary);
@@ -90,16 +90,33 @@
   gap: 0;
 }
 
-.sidebar-item:hover {
+.sidebar-item-row {
+  position: relative;
+}
+
+.sidebar-item-row:hover {
   background: var(--bg-hover);
 }
 
-.sidebar-item.active {
+.sidebar-item-row.active {
   background: var(--bg-active);
+}
+
+.sidebar-item-row.active .sidebar-item {
   color: var(--text-highlight);
 }
 
+.sidebar-item[data-focus-visible] {
+  outline: 1px solid var(--accent-color);
+  outline-offset: -1px;
+}
+
 .sidebar-favorite-button {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  transform: translateY(-50%);
+  z-index: 1;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -119,13 +136,16 @@
     color 0.1s;
 }
 
-.sidebar-item:hover .sidebar-favorite-button {
+.sidebar-item-row:hover .sidebar-favorite-button,
+.sidebar-favorite-button[data-focus-visible] {
   opacity: 0.5;
 }
 
-.sidebar-item:hover .sidebar-favorite-button:hover {
+.sidebar-favorite-button[data-hovered],
+.sidebar-favorite-button[data-focus-visible] {
   opacity: 1;
   color: #f5a623;
+  outline: none;
 }
 
 .sidebar-favorite-button.favorited {

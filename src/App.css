@@ -105,10 +105,12 @@
     background 0.12s;
 }
 
-.view-toggle:hover {
+.view-toggle[data-hovered],
+.view-toggle[data-focus-visible] {
   color: var(--text-primary);
   border-color: var(--accent-color);
   background: color-mix(in srgb, var(--bg-sidebar) 84%, white);
+  outline: none;
 }
 
 .view-toggle-icon {

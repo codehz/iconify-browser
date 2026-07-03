@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
 import { useLocalStorage } from "foxact/use-local-storage";
+import { Button as AriaButton } from "react-aria-components";
 import { DetailFormatSelect, type NameFormatId, type NameFormatOption } from "./DetailFormatSelect";
 import type { IconSelection } from "../types";
 import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
@@ -140,17 +141,13 @@ export function DetailPanel({
         </span>
         <span className="detail-panel-breadcrumb">{collectionName}</span>
         {selection.kind === "global-search" ? (
-          <button
-            className="detail-panel-action"
-            onClick={() => onOpenCollection?.(selection)}
-            type="button"
-          >
+          <AriaButton className="detail-panel-action" onPress={() => onOpenCollection?.(selection)}>
             打开所在图标包
-          </button>
+          </AriaButton>
         ) : null}
-        <button className="detail-panel-close" onClick={onClose} type="button">
+        <AriaButton aria-label="关闭详情" className="detail-panel-close" onPress={onClose}>
           ×
-        </button>
+        </AriaButton>
       </div>
       {loading || (selection.kind === "browse" && collectionLoading) ? (
         <div className="detail-panel-state">加载图标详情...</div>
@@ -215,17 +212,16 @@ function DetailPanelContent({
         <div className="detail-copy-section">
           <div className="detail-copy-header">
             <span>名称格式</span>
-            <button
+            <AriaButton
               className="detail-copy-button"
-              onClick={() => {
+              onPress={() => {
                 const selectedFormat =
                   nameFormats.find((format) => format.id === selectedFormatId) ?? nameFormats[0];
                 onCopy(selectedFormat.value, selectedFormat.id);
               }}
-              type="button"
             >
               {copiedField === selectedFormatId ? "已复制" : "复制"}
-            </button>
+            </AriaButton>
           </div>
           <DetailFormatSelect
             onSelectionChange={setSelectedFormatId}
@@ -245,9 +241,9 @@ function DetailPanelContent({
       <div className="detail-svg">
         <div className="detail-svg-header">
           <span>SVG</span>
-          <button className="detail-svg-copy" onClick={() => onCopy(iconHtml, "svg")} type="button">
+          <AriaButton className="detail-svg-copy" onPress={() => onCopy(iconHtml, "svg")}>
             {copiedField === "svg" ? "已复制" : "复制"}
-          </button>
+          </AriaButton>
         </div>
         <pre className="detail-svg-code">{iconHtml}</pre>
       </div>

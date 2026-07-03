@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
+import { Button as AriaButton } from "react-aria-components";
 import type { GlobalSearchSelection, IconSelection } from "./types";
 import { useCollections } from "./hooks/useCollections";
 import { useCollection } from "./hooks/useCollection";
@@ -196,11 +197,9 @@ function App() {
 
   return (
     <div className={`app ${isGlobalSearch ? "global-search-mode" : ""}`}>
-      <button
+      <AriaButton
         className="view-toggle"
-        onClick={() => handleSwitchView(isGlobalSearch ? "browse" : "global-search")}
-        type="button"
-        title={isGlobalSearch ? "切换到图标包浏览" : "切换到全局搜索"}
+        onPress={() => handleSwitchView(isGlobalSearch ? "browse" : "global-search")}
       >
         <svg className="view-toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
           {isGlobalSearch ? (
@@ -258,7 +257,7 @@ function App() {
           )}
         </svg>
         <span>{isGlobalSearch ? "图标包浏览" : "全局搜索"}</span>
-      </button>
+      </AriaButton>
       {!isGlobalSearch && (
         <Sidebar
           collections={collections}

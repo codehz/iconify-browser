@@ -3,6 +3,7 @@ import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { IconifyJSON } from "@iconify/types";
+import { Button as AriaButton } from "react-aria-components";
 import { AriaSelectComponent, type AriaSelectOption } from "./AriaSelect";
 import { useElementWidth } from "../hooks/useElementWidth";
 import {
@@ -215,18 +216,17 @@ export function IconGrid({
                 const count = suffixCounts.get(suffix) ?? 0;
                 const isActive = selectedSuffix === suffix;
                 return (
-                  <button
+                  <AriaButton
                     key={suffix || "default"}
-                    type="button"
                     className={`icon-grid-filter ${isActive ? "active" : ""}`}
-                    onClick={() =>
+                    isDisabled={count === 0 && !isActive}
+                    onPress={() =>
                       onSelectedSuffixChange(selectedSuffix === suffix ? null : suffix)
                     }
-                    disabled={count === 0 && !isActive}
                   >
                     <span>{label}</span>
                     <span className="icon-grid-filter-count">{count}</span>
-                  </button>
+                  </AriaButton>
                 );
               })}
             </div>
@@ -290,18 +290,18 @@ export function IconGrid({
                         }
 
                         return (
-                          <button
+                          <AriaButton
+                            aria-label={name}
                             key={name}
                             className={`icon-grid-item ${selectedIcon === name ? "active" : ""}`}
-                            onClick={() => onSelectIcon(name)}
-                            title={name}
+                            onPress={() => onSelectIcon(name)}
                           >
                             <div
                               className="icon-grid-icon"
                               dangerouslySetInnerHTML={{ __html: html }}
                             />
                             <span className="icon-grid-label">{name}</span>
-                          </button>
+                          </AriaButton>
                         );
                       })}
                     </div>

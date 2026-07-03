@@ -382,11 +382,10 @@ function GlobalSearchCard({ isSelected, selection, onSelect }: GlobalSearchCardP
   }, [data, selection.name]);
 
   return (
-    <button
+    <AriaButton
+      aria-label={`${selection.prefix}:${selection.name}`}
       className={`global-search-card ${isSelected ? "active" : ""}`}
-      onClick={() => onSelect(selection)}
-      type="button"
-      title={`${selection.prefix}:${selection.name}`}
+      onPress={() => onSelect(selection)}
     >
       <div className="global-search-card-top">
         <div className="global-search-card-preview">
@@ -422,6 +421,6 @@ function GlobalSearchCard({ isSelected, selection, onSelect }: GlobalSearchCardP
       <span className="global-search-card-name" title={selection.name}>
         {selection.name}
       </span>
-    </button>
+    </AriaButton>
   );
 }
