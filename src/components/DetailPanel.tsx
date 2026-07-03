@@ -167,7 +167,6 @@ export function DetailPanel({
       ) : (
         <DetailPanelContent
           aliasData={aliasData}
-          collectionPrefix={collectionPrefix}
           copiedField={copiedField}
           height={height}
           iconHtml={iconHtml}
@@ -185,7 +184,6 @@ export function DetailPanel({
 
 interface DetailPanelContentProps {
   aliasData: NonNullable<IconifyJSON["aliases"]>[string] | null;
-  collectionPrefix: string;
   copiedField: string | null;
   height: number;
   iconHtml: string;
@@ -199,7 +197,6 @@ interface DetailPanelContentProps {
 
 function DetailPanelContent({
   aliasData,
-  collectionPrefix,
   copiedField,
   height,
   iconHtml,
@@ -256,10 +253,6 @@ function DetailPanelContent({
           </div>
         </div>
         <div className="detail-meta">
-          <div className="detail-info-row">
-            <span className="detail-info-label">前缀</span>
-            <span className="detail-info-value">{collectionPrefix}</span>
-          </div>
           {aliasData ? (
             <div className="detail-info-row">
               <span className="detail-info-label">别名</span>
