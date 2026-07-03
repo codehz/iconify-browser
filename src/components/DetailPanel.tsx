@@ -1,6 +1,7 @@
-import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
 import { useLocalStorage } from "foxact/use-local-storage";
+import { DetailFormatSelect, type NameFormatId, type NameFormatOption } from "./DetailFormatSelect";
 import type { IconSelection } from "../types";
 import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
 import { renderIconHTML } from "../utils/iconRenderer";
@@ -17,8 +18,6 @@ interface DetailPanelProps {
 
 const DETAIL_FORMAT_STORAGE_KEY = "iconify-browser:detail-format";
 const DEFAULT_FORMAT_ID = "iconify";
-
-type NameFormatId = "iconify" | "name" | "component" | "tailwind" | "unocss" | "import";
 
 export function DetailPanel({
   selection,
@@ -86,7 +85,7 @@ export function DetailPanel({
           label: "导入路径",
           value: `${collectionPrefix}/${iconName ?? ""}`,
         },
-      ] satisfies Array<{ id: NameFormatId; label: string; value: string }>,
+      ] satisfies NameFormatOption[],
     [collectionPrefix, iconName],
   );
 
@@ -187,9 +186,9 @@ interface DetailPanelContentProps {
   copiedField: string | null;
   height: number;
   iconHtml: string;
-  nameFormats: Array<{ id: NameFormatId; label: string; value: string }>;
+  nameFormats: NameFormatOption[];
   onCopy: (value: string, field: string) => void;
-  selectedFormat: { id: NameFormatId; label: string; value: string };
+  selectedFormat: NameFormatOption;
   selectedFormatId: NameFormatId;
   setSelectedFormatId: (value: NameFormatId) => void;
   width: number;
@@ -230,28 +229,12 @@ function DetailPanelContent({
               {copiedField === selectedFormat.id ? "已复制" : "复制"}
             </button>
           </div>
-          <select
-            className="detail-format-select"
-            id="detail-format-select"
-            value={selectedFormatId}
-            onChange={(event) => {
-              if (isNameFormatId(event.target.value)) {
-                setSelectedFormatId(event.target.value);
-              }
-            }}
-          >
-            <button className="detail-format-button" type="button">
-              {createElement("selectedcontent")}
-            </button>
-            {nameFormats.map((format) => (
-              <option className="detail-format-option" key={format.id} value={format.id}>
-                <span className="detail-format-option-content">
-                  <span className="detail-option-label">{format.label}</span>
-                  <span className="detail-option-value">{format.value}</span>
-                </span>
-              </option>
-            ))}
-          </select>
+          <DetailFormatSelect
+            onSelectionChange={setSelectedFormatId}
+            options={nameFormats}
+            selectedKey={selectedFormatId}
+            selectedOption={selectedFormat}
+          />
         </div>
         <div className="detail-meta">
           {aliasData ? (
@@ -281,15 +264,4 @@ function toPascalCase(value: string) {
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join("");
-}
-
-function isNameFormatId(value: string): value is NameFormatId {
-  return (
-    value === "iconify" ||
-    value === "name" ||
-    value === "component" ||
-    value === "tailwind" ||
-    value === "unocss" ||
-    value === "import"
-  );
 }

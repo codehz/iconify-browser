@@ -16,6 +16,7 @@
     "@tanstack/react-virtual": "^3.14.5",
     "foxact": "^0.3.8",
     "react": "^19.2.7",
+    "react-aria-components": "^1.19.0",
     "react-dom": "^19.2.7",
     "simplebar": "^6.3.3",
     "simplebar-react": "^3.3.2"
