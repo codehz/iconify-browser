@@ -143,7 +143,8 @@ export function DetailPanel({
             )}
           </div>
           <div className="detail-preview-size">
-            {width} × {height}
+            <span>W: {width}</span>
+            <span>H: {height}</span>
           </div>
         </div>
         <div className="detail-info">
