@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { CollectionItem } from "../types";
+import { ScrollArea } from "./ScrollArea";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -67,7 +68,7 @@ export function Sidebar({
           className="sidebar-search-input"
         />
       </div>
-      <div className="sidebar-list">
+      <ScrollArea className="sidebar-list">
         {loading ? (
           <div className="sidebar-status">加载中...</div>
         ) : filtered.length === 0 ? (
@@ -100,7 +101,7 @@ export function Sidebar({
             </div>
           ))
         )}
-      </div>
+      </ScrollArea>
     </aside>
   );
 }

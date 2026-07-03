@@ -127,8 +127,7 @@
 
 .global-search-filter-list {
   flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-height: 0;
 }
 
 .global-search-filter-item {
@@ -226,12 +225,19 @@
   color: var(--error-color);
 }
 
-.global-search-grid {
+.global-search-grid-outer {
   position: relative;
   flex: 1;
+  min-height: 0;
+}
+
+.global-search-grid {
+  position: absolute;
+  inset: 0;
+}
+
+.global-search-grid .simplebar-content {
   padding: 0 16px 16px;
-  box-sizing: border-box;
-  overflow-y: auto;
 }
 
 .global-search-virtual-space {

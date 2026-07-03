@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import SimpleBar from "simplebar-react";
+import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { IconifyJSON } from "@iconify/types";
 import { useElementWidth } from "../hooks/useElementWidth";
@@ -46,8 +48,14 @@ export function IconGrid({
   onSelectedCategoryChange,
   onSelectIcon,
 }: IconGridProps) {
-  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
+  const [igScrollElement, setIgScrollElement] = useState<HTMLElement | null>(null);
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null);
+
+  const igSimpleBarRef = useCallback((instance: SimpleBarCore | null) => {
+    if (instance) {
+      setIgScrollElement(instance.getScrollElement() ?? null);
+    }
+  }, []);
 
   const allNames = useMemo(() => getIconNames(collection), [collection]);
   const suffixEntries = useMemo(() => getCollectionSuffixEntries(collection), [collection]);
@@ -114,7 +122,7 @@ export function IconGrid({
   );
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
-    getScrollElement: () => scrollElement,
+    getScrollElement: () => igScrollElement,
     estimateSize: () => ICON_GRID_ESTIMATED_ROW_HEIGHT,
     gap: ICON_GRID_GAP,
     overscan: 6,
@@ -123,8 +131,8 @@ export function IconGrid({
   const virtualRows = rowVirtualizer.getVirtualItems();
 
   useEffect(() => {
-    scrollElement?.scrollTo({ top: 0 });
-  }, [collectionPrefix, scrollElement, searchQuery, selectedCategory, selectedSuffix]);
+    igScrollElement?.scrollTo({ top: 0 });
+  }, [collectionPrefix, igScrollElement, searchQuery, selectedCategory, selectedSuffix]);
 
   return (
     <div className="icon-grid-container">
@@ -186,7 +194,7 @@ export function IconGrid({
           ) : null}
         </div>
       ) : null}
-      <div className="icon-grid-body" ref={setScrollElement}>
+      <SimpleBar ref={igSimpleBarRef} className="icon-grid-body" autoHide={false}>
         {fullyFilteredNames.length === 0 ? (
           <div className="icon-grid-empty">{searchQuery ? "无匹配图标" : "暂无图标"}</div>
         ) : (
@@ -244,7 +252,7 @@ export function IconGrid({
             </div>
           </div>
         )}
-      </div>
+      </SimpleBar>
     </div>
   );
 }

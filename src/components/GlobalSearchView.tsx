@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import SimpleBar from "simplebar-react";
+import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { GlobalSearchHit, GlobalSearchSelection, CollectionItem } from "../types";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
 import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
 import { renderIconHTML } from "../utils/iconRenderer";
 import { useElementWidth } from "../hooks/useElementWidth";
+import { ScrollArea } from "./ScrollArea";
 import "./GlobalSearchView.css";
 
 const CARD_MIN_WIDTH = 180;
@@ -58,9 +61,17 @@ export function GlobalSearchView({
     return result;
   }, [hits, columns]);
 
+  const [gsScrollElement, setGsScrollElement] = useState<HTMLElement | null>(null);
+
+  const gsSimpleBarRef = useCallback((instance: SimpleBarCore | null) => {
+    if (instance) {
+      setGsScrollElement(instance.getScrollElement() ?? null);
+    }
+  }, []);
+
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => gridRef.current,
+    getScrollElement: () => gsScrollElement,
     estimateSize: () => ROW_HEIGHT,
     overscan: 5,
   });
@@ -186,7 +197,7 @@ export function GlobalSearchView({
                       value={filterSearch}
                       onChange={(e) => setFilterSearch(e.target.value)}
                     />
-                    <div className="global-search-filter-list">
+                    <ScrollArea className="global-search-filter-list">
                       {filteredCollections.map((col) => {
                         const checked = selectedPrefixes.has(col.prefix);
                         const matchCount = collectionHitCounts.get(col.prefix) ?? 0;
@@ -205,7 +216,7 @@ export function GlobalSearchView({
                           </label>
                         );
                       })}
-                    </div>
+                    </ScrollArea>
                   </div>
                 </>
               )}
@@ -214,55 +225,57 @@ export function GlobalSearchView({
           {hits.length === 0 && !loading ? (
             <div className="global-search-empty-state">无匹配图标</div>
           ) : (
-            <div ref={gridRef} className="global-search-grid">
-              <div
-                className="global-search-virtual-space"
-                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-              >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const rowHits = rows[virtualRow.index];
-                  return (
-                    <div
-                      key={virtualRow.key}
-                      className="global-search-row"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: `${virtualRow.size}px`,
-                        transform: `translateY(${virtualRow.start}px)`,
-                        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                      }}
-                    >
-                      {rowHits.map((hit) => {
-                        const collection = collectionsByPrefix.get(hit.prefix);
-                        const selection: GlobalSearchSelection = {
-                          kind: "global-search",
-                          prefix: hit.prefix,
-                          name: hit.name,
-                          collectionName: collection?.name ?? hit.prefix,
-                          chunkId: hit.chunkId,
-                          isAlias: hit.isAlias,
-                        };
+            <div ref={gridRef} className="global-search-grid-outer">
+              <SimpleBar ref={gsSimpleBarRef} className="global-search-grid" autoHide={false}>
+                <div
+                  className="global-search-virtual-space"
+                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const rowHits = rows[virtualRow.index];
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        className="global-search-row"
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {rowHits.map((hit) => {
+                          const collection = collectionsByPrefix.get(hit.prefix);
+                          const selection: GlobalSearchSelection = {
+                            kind: "global-search",
+                            prefix: hit.prefix,
+                            name: hit.name,
+                            collectionName: collection?.name ?? hit.prefix,
+                            chunkId: hit.chunkId,
+                            isAlias: hit.isAlias,
+                          };
 
-                        return (
-                          <GlobalSearchCard
-                            key={`${hit.prefix}:${hit.chunkId}:${hit.name}`}
-                            isSelected={
-                              selectedHit?.prefix === hit.prefix &&
-                              selectedHit?.chunkId === hit.chunkId &&
-                              selectedHit?.name === hit.name
-                            }
-                            selection={selection}
-                            onSelect={onSelectHit}
-                          />
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
+                          return (
+                            <GlobalSearchCard
+                              key={`${hit.prefix}:${hit.chunkId}:${hit.name}`}
+                              isSelected={
+                                selectedHit?.prefix === hit.prefix &&
+                                selectedHit?.chunkId === hit.chunkId &&
+                                selectedHit?.name === hit.name
+                              }
+                              selection={selection}
+                              onSelect={onSelectHit}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </SimpleBar>
             </div>
           )}
         </>

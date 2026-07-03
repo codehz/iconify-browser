@@ -1,0 +1,50 @@
+/* SimpleBar theme overrides - matches the app's VS Code-like dark theme */
+
+/* Vertical track - match native scrollbar width */
+.simplebar-track.simplebar-vertical {
+  width: 10px;
+}
+
+/* Horizontal track */
+.simplebar-track.simplebar-horizontal {
+  height: 10px;
+}
+
+/* Track background - transparent like native */
+.simplebar-track {
+  background: transparent;
+}
+
+/* Scrollbar thumb */
+.simplebar-scrollbar::before {
+  background: #424242;
+  border-radius: 5px;
+  left: 2px;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  opacity: 1;
+  transition: background 0.12s ease;
+}
+
+/* Scrollbar thumb hover */
+.simplebar-scrollbar:hover::before,
+.simplebar-scrollbar.simplebar-hover::before {
+  background: #4f4f4f;
+}
+
+/* When autoHide is false, the scrollbar is always visible when content overflows.
+   Keep the visible state always applied. */
+.simplebar-scrollbar.simplebar-visible::before {
+  opacity: 1;
+}
+
+/* Ensure track pointer events are enabled so clicks on the track work */
+.simplebar-track {
+  pointer-events: auto;
+}
+
+/* Dragging state */
+.simplebar-scrollbar.simplebar-dragging::before {
+  background: #4f4f4f;
+}
