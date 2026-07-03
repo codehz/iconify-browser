@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
 import { renderIconHTML, getIconNames } from "../utils/iconRenderer";
 import {
+  buildCategoryNameSet,
   countIconsBySuffix,
+  getCollectionCategoryEntries,
   getCollectionSuffixEntries,
   getIconSuffixKey,
 } from "../utils/collectionPreview";
@@ -25,13 +27,25 @@ export function IconGrid({
 }: IconGridProps) {
   const [search, setSearch] = useState("");
   const [selectedSuffix, setSelectedSuffix] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const allNames = useMemo(() => getIconNames(collection), [collection]);
   const suffixEntries = useMemo(() => getCollectionSuffixEntries(collection), [collection]);
+  const categoryEntries = useMemo(() => getCollectionCategoryEntries(collection), [collection]);
   const supportsSuffixPreview = suffixEntries.length > 0;
+  const supportsCategoryPreview = categoryEntries.length > 0;
+  const categoryFilters = useMemo(
+    () =>
+      categoryEntries.map(([category, names]) => ({
+        category,
+        names: buildCategoryNameSet(names, collection.aliases),
+      })),
+    [categoryEntries, collection.aliases],
+  );
 
   useEffect(() => {
     setSelectedSuffix(null);
+    setSelectedCategory("");
   }, [collectionPrefix]);
 
   const searchFilteredNames = useMemo(() => {
@@ -53,6 +67,28 @@ export function IconGrid({
       (name) => getIconSuffixKey(name, suffixEntries) === selectedSuffix,
     );
   }, [searchFilteredNames, selectedSuffix, suffixEntries]);
+  const categoryCounts = useMemo(
+    () =>
+      new Map(
+        categoryFilters.map((filter) => [
+          filter.category,
+          filteredNames.filter((name) => filter.names.has(name)).length,
+        ]),
+      ),
+    [categoryFilters, filteredNames],
+  );
+  const fullyFilteredNames = useMemo(() => {
+    if (!selectedCategory) {
+      return filteredNames;
+    }
+
+    const categoryFilter = categoryFilters.find((filter) => filter.category === selectedCategory);
+    if (!categoryFilter) {
+      return filteredNames;
+    }
+
+    return filteredNames.filter((name) => categoryFilter.names.has(name));
+  }, [categoryFilters, filteredNames, selectedCategory]);
 
   return (
     <div className="icon-grid-container">
@@ -71,32 +107,55 @@ export function IconGrid({
           className="icon-grid-search-input"
         />
       </div>
-      {supportsSuffixPreview ? (
+      {supportsSuffixPreview || supportsCategoryPreview ? (
         <div className="icon-grid-filters">
-          {suffixEntries.map(([suffix, label]) => {
-            const count = suffixCounts.get(suffix) ?? 0;
-            const isActive = selectedSuffix === suffix;
-            return (
-              <button
-                key={suffix || "default"}
-                type="button"
-                className={`icon-grid-filter ${isActive ? "active" : ""}`}
-                onClick={() => setSelectedSuffix((current) => (current === suffix ? null : suffix))}
-                disabled={count === 0 && !isActive}
+          {supportsSuffixPreview ? (
+            <div className="icon-grid-filter-group">
+              {suffixEntries.map(([suffix, label]) => {
+                const count = suffixCounts.get(suffix) ?? 0;
+                const isActive = selectedSuffix === suffix;
+                return (
+                  <button
+                    key={suffix || "default"}
+                    type="button"
+                    className={`icon-grid-filter ${isActive ? "active" : ""}`}
+                    onClick={() =>
+                      setSelectedSuffix((current) => (current === suffix ? null : suffix))
+                    }
+                    disabled={count === 0 && !isActive}
+                  >
+                    <span>{label}</span>
+                    <span className="icon-grid-filter-count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          {supportsCategoryPreview ? (
+            <label className="icon-grid-category-filter">
+              <span className="icon-grid-category-label">类别</span>
+              <select
+                className="icon-grid-category-select"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
               >
-                <span>{label}</span>
-                <span className="icon-grid-filter-count">{count}</span>
-              </button>
-            );
-          })}
+                <option value="">全部类别</option>
+                {categoryFilters.map((filter) => (
+                  <option key={filter.category} value={filter.category}>
+                    {filter.category} ({categoryCounts.get(filter.category) ?? 0})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
       ) : null}
       <div className="icon-grid-body">
-        {filteredNames.length === 0 ? (
+        {fullyFilteredNames.length === 0 ? (
           <div className="icon-grid-empty">{search ? "无匹配图标" : "暂无图标"}</div>
         ) : (
           <div className="icon-grid">
-            {filteredNames.map((name) => {
+            {fullyFilteredNames.map((name) => {
               const html = renderIconHTML(collection, name);
               if (!html) return null;
               return (

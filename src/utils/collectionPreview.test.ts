@@ -1,7 +1,9 @@
 /* eslint-disable vite-plus/prefer-vite-plus-imports */
 import { describe, expect, it } from "vitest";
 import {
+  buildCategoryNameSet,
   countIconsBySuffix,
+  getCollectionCategoryEntries,
   getCollectionSuffixEntries,
   getIconSuffixKey,
 } from "./collectionPreview";
@@ -83,5 +85,29 @@ describe("collectionPreview", () => {
       ["", 2],
       ["square", 2],
     ]);
+  });
+
+  it("reads category entries from collection metadata", () => {
+    expect(
+      getCollectionCategoryEntries({
+        categories: {
+          Navigation: ["home", "user"],
+          Files: ["file"],
+        },
+      }),
+    ).toEqual([
+      ["Navigation", ["home", "user"]],
+      ["Files", ["file"]],
+    ]);
+  });
+
+  it("expands category names to include aliases of categorized icons", () => {
+    const names = buildCategoryNameSet(["user"], {
+      "user-outline": { parent: "user" },
+      "user-outline-rtl": { parent: "user-outline" },
+      orphan: { parent: "missing" },
+    });
+
+    expect(Array.from(names).sort()).toEqual(["user", "user-outline", "user-outline-rtl"]);
   });
 });

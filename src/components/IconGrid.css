@@ -60,10 +60,17 @@
 
 .icon-grid-filters {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.icon-grid-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .icon-grid-filter {
@@ -97,6 +104,33 @@
 
 .icon-grid-filter-count {
   color: var(--text-secondary);
+}
+
+.icon-grid-category-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.icon-grid-category-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.icon-grid-category-select {
+  min-width: 180px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+}
+
+.icon-grid-category-select:focus {
+  border-color: var(--accent-color);
 }
 
 .icon-grid {

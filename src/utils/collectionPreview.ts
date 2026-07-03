@@ -60,3 +60,66 @@ export function countIconsBySuffix(
 
   return counts;
 }
+
+export function getCollectionCategoryEntries(
+  collection: Pick<IconifyJSON, "categories">,
+): Array<[string, string[]]> {
+  return Object.entries(collection.categories ?? {}).filter(
+    (entry): entry is [string, string[]] =>
+      Array.isArray(entry[1]) && entry[1].every((name) => typeof name === "string"),
+  );
+}
+
+function isAliasInCategory(
+  aliasName: string,
+  aliases: NonNullable<IconifyJSON["aliases"]>,
+  categoryNames: Set<string>,
+  cache: Map<string, boolean>,
+  seen = new Set<string>(),
+): boolean {
+  const cached = cache.get(aliasName);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  if (seen.has(aliasName)) {
+    cache.set(aliasName, false);
+    return false;
+  }
+
+  const alias = aliases[aliasName];
+  if (!alias) {
+    cache.set(aliasName, false);
+    return false;
+  }
+
+  if (categoryNames.has(alias.parent)) {
+    cache.set(aliasName, true);
+    return true;
+  }
+
+  seen.add(aliasName);
+  const result = isAliasInCategory(alias.parent, aliases, categoryNames, cache, seen);
+  cache.set(aliasName, result);
+  return result;
+}
+
+export function buildCategoryNameSet(
+  iconNames: string[],
+  aliases?: IconifyJSON["aliases"],
+): Set<string> {
+  const categoryNames = new Set(iconNames);
+
+  if (!aliases) {
+    return categoryNames;
+  }
+
+  const cache = new Map<string, boolean>();
+  for (const aliasName of Object.keys(aliases)) {
+    if (isAliasInCategory(aliasName, aliases, categoryNames, cache)) {
+      categoryNames.add(aliasName);
+    }
+  }
+
+  return categoryNames;
+}
