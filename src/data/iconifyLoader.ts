@@ -30,6 +30,38 @@ function assertNotAborted(signal?: AbortSignal) {
   }
 }
 
+function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  assertNotAborted(signal);
+
+  if (!signal) {
+    return promise;
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const handleAbort = () => {
+      cleanup();
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+
+    const cleanup = () => {
+      signal.removeEventListener("abort", handleAbort);
+    };
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+
+    promise.then(
+      (value) => {
+        cleanup();
+        resolve(value);
+      },
+      (error: unknown) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
+
 async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal });
   if (!response.ok) {
@@ -80,18 +112,15 @@ export async function loadCollectionManifest(
 ): Promise<CollectionManifest> {
   const cached = manifestCache.get(prefix);
   if (cached) {
-    return cached;
+    return withAbort(Promise.resolve(cached), options?.signal);
   }
 
   const pending = manifestPromiseCache.get(prefix);
   if (pending) {
-    return pending;
+    return withAbort(pending, options?.signal);
   }
 
-  const promise = fetchJson<CollectionManifest>(
-    `/iconify-data/collections/${prefix}/manifest.json`,
-    options?.signal,
-  )
+  const promise = fetchJson<CollectionManifest>(`/iconify-data/collections/${prefix}/manifest.json`)
     .then((manifest) => {
       manifestPromiseCache.delete(prefix);
       manifestCache.set(prefix, manifest);
@@ -103,7 +132,7 @@ export async function loadCollectionManifest(
     });
 
   manifestPromiseCache.set(prefix, promise);
-  return promise;
+  return withAbort(promise, options?.signal);
 }
 
 export async function loadCollectionChunk(
@@ -114,12 +143,12 @@ export async function loadCollectionChunk(
   const chunkKey = `${prefix}:${chunkId}`;
   const cached = chunkCache.get(chunkKey);
   if (cached) {
-    return cached;
+    return withAbort(Promise.resolve(cached), options?.signal);
   }
 
   const pending = chunkPromiseCache.get(chunkKey);
   if (pending) {
-    return pending;
+    return withAbort(pending, options?.signal);
   }
 
   const promise = (async () => {
@@ -132,7 +161,6 @@ export async function loadCollectionChunk(
 
     const chunk = await fetchJson<CollectionChunk>(
       `/iconify-data/collections/${prefix}/${chunkMeta.file}`,
-      options?.signal,
     );
 
     chunkPromiseCache.delete(chunkKey);
@@ -144,7 +172,7 @@ export async function loadCollectionChunk(
   });
 
   chunkPromiseCache.set(chunkKey, promise);
-  return promise;
+  return withAbort(promise, options?.signal);
 }
 
 export async function loadCollection(prefix: string, options?: LoadOptions): Promise<IconifyJSON> {
@@ -166,23 +194,21 @@ export async function loadCollection(prefix: string, options?: LoadOptions): Pro
 
 export async function loadGlobalSearchIndex(options?: LoadOptions): Promise<GlobalSearchIndex> {
   if (globalSearchIndexCache) {
-    return globalSearchIndexCache;
+    return withAbort(Promise.resolve(globalSearchIndexCache), options?.signal);
   }
 
   if (globalSearchIndexPromise) {
-    return globalSearchIndexPromise;
+    return withAbort(globalSearchIndexPromise, options?.signal);
   }
 
   const promise = (async () => {
     const manifest = await fetchJson<GlobalSearchIndexManifest>(
       "/iconify-data/search/manifest.json",
-      options?.signal,
     );
     assertNotAborted(options?.signal);
 
     const entries = await fetchJson<GlobalSearchIndexEntries>(
       `/iconify-data/search/${manifest.entriesFile}`,
-      options?.signal,
     );
     assertNotAborted(options?.signal);
 
@@ -204,7 +230,7 @@ export async function loadGlobalSearchIndex(options?: LoadOptions): Promise<Glob
   });
 
   globalSearchIndexPromise = promise;
-  return promise;
+  return withAbort(promise, options?.signal);
 }
 
 export function searchGlobalSearchIndex(

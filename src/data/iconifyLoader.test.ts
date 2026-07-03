@@ -167,6 +167,73 @@ describe("iconifyLoader", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a shared search-hit load alive when another consumer aborts", async () => {
+    const manifestResponse = {
+      version: 3,
+      prefix: "demo",
+      iconCount: 1,
+      aliasCount: 0,
+      base: { width: 24, height: 24 },
+      chunks: [{ id: 0, file: "chunk-0.json", iconCount: 1, aliasCount: 0 }],
+    };
+    const chunkResponse = {
+      icons: {
+        bell: { body: "<path d='M12 2l4 8H8z' />" },
+      },
+    };
+
+    const manifestRequest = {
+      resolve: null as (() => void) | null,
+    };
+
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = getRequestUrl(input);
+
+      if (url.endsWith("/collections/demo/manifest.json")) {
+        return new Promise<Response>((resolve, reject) => {
+          const signal = init?.signal;
+          if (signal) {
+            signal.addEventListener(
+              "abort",
+              () => reject(new DOMException("Aborted", "AbortError")),
+              { once: true },
+            );
+          }
+
+          manifestRequest.resolve = () => resolve(createJsonResponse(manifestResponse));
+        });
+      }
+
+      if (url.endsWith("/collections/demo/chunk-0.json")) {
+        return Promise.resolve(createJsonResponse(chunkResponse));
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+
+    const firstLoad = loadIconBySearchHit("demo", 0, { signal: firstController.signal });
+    const secondLoad = loadIconBySearchHit("demo", 0, { signal: secondController.signal });
+
+    firstController.abort();
+    if (manifestRequest.resolve) {
+      manifestRequest.resolve();
+    }
+
+    await expect(firstLoad).rejects.toThrow(/Aborted/);
+    await expect(secondLoad).resolves.toMatchObject({
+      prefix: "demo",
+      icons: {
+        bell: { body: "<path d='M12 2l4 8H8z' />" },
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("searches the global index with case-insensitive substring matching", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = getRequestUrl(input);
