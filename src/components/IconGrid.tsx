@@ -20,6 +20,7 @@ import {
   getIconSuffixKey,
 } from "../utils/collectionPreview";
 import "./IconGrid.css";
+import { useRetimer } from "foxact/use-retimer";
 
 interface IconGridProps {
   collection: IconifyJSON;
@@ -129,6 +130,27 @@ export function IconGrid({
     useFlushSync: false,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
+  const retimer = useRetimer();
+
+  // 滚动到图标所在行（处理 detail panel 遮挡问题）
+  useEffect(() => {
+    if (!selectedIcon || fullyFilteredNames.length === 0) {
+      return;
+    }
+
+    const iconIndex = fullyFilteredNames.indexOf(selectedIcon);
+    if (iconIndex === -1) {
+      return;
+    }
+
+    const rowIndex = Math.floor(iconIndex / columnCount);
+
+    return retimer(
+      setTimeout(() => {
+        rowVirtualizer.scrollToIndex(rowIndex, { align: "center", behavior: "smooth" });
+      }, 100),
+    );
+  }, [selectedIcon, fullyFilteredNames, columnCount, rowVirtualizer]);
 
   useEffect(() => {
     igScrollElement?.scrollTo({ top: 0 });
