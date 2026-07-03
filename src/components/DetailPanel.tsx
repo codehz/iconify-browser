@@ -1,5 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import type { IconifyJSON } from "@iconify/types";
+import { useLocalStorage } from "foxact/use-local-storage";
 import { renderIconHTML } from "../utils/iconRenderer";
 import "./DetailPanel.css";
 
@@ -11,6 +12,11 @@ interface DetailPanelProps {
   onClose: () => void;
 }
 
+const DETAIL_FORMAT_STORAGE_KEY = "iconify-browser:detail-format";
+const DEFAULT_FORMAT_ID = "iconify";
+
+type NameFormatId = "iconify" | "name" | "component" | "tailwind" | "unocss" | "import";
+
 export function DetailPanel({
   iconName,
   collection,
@@ -19,7 +25,10 @@ export function DetailPanel({
   onClose,
 }: DetailPanelProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [selectedFormatId, setSelectedFormatId] = useState("iconify");
+  const [selectedFormatId, setSelectedFormatId] = useLocalStorage<NameFormatId>(
+    DETAIL_FORMAT_STORAGE_KEY,
+    DEFAULT_FORMAT_ID,
+  );
   const copyResetTimerRef = useRef<number | null>(null);
 
   const iconHtml = useMemo(() => {
@@ -28,38 +37,39 @@ export function DetailPanel({
   }, [iconName, collection]);
 
   const nameFormats = useMemo(
-    () => [
-      {
-        id: "iconify",
-        label: "Iconify",
-        value: `${collectionPrefix}:${iconName ?? ""}`,
-      },
-      {
-        id: "name",
-        label: "名称",
-        value: iconName ?? "",
-      },
-      {
-        id: "component",
-        label: "组件名",
-        value: toPascalCase(`${collectionPrefix}-${iconName ?? ""}`),
-      },
-      {
-        id: "tailwind",
-        label: "Tailwind",
-        value: `icon-[${collectionPrefix}--${iconName ?? ""}]`,
-      },
-      {
-        id: "unocss",
-        label: "UnoCSS",
-        value: `i-${collectionPrefix}:${iconName ?? ""}`,
-      },
-      {
-        id: "import",
-        label: "导入路径",
-        value: `${collectionPrefix}/${iconName ?? ""}`,
-      },
-    ],
+    () =>
+      [
+        {
+          id: "iconify",
+          label: "Iconify",
+          value: `${collectionPrefix}:${iconName ?? ""}`,
+        },
+        {
+          id: "name",
+          label: "名称",
+          value: iconName ?? "",
+        },
+        {
+          id: "component",
+          label: "组件名",
+          value: toPascalCase(`${collectionPrefix}-${iconName ?? ""}`),
+        },
+        {
+          id: "tailwind",
+          label: "Tailwind",
+          value: `icon-[${collectionPrefix}--${iconName ?? ""}]`,
+        },
+        {
+          id: "unocss",
+          label: "UnoCSS",
+          value: `i-${collectionPrefix}:${iconName ?? ""}`,
+        },
+        {
+          id: "import",
+          label: "导入路径",
+          value: `${collectionPrefix}/${iconName ?? ""}`,
+        },
+      ] satisfies Array<{ id: NameFormatId; label: string; value: string }>,
     [collectionPrefix, iconName],
   );
 
@@ -72,9 +82,14 @@ export function DetailPanel({
   }, []);
 
   useEffect(() => {
-    setSelectedFormatId("iconify");
     setCopiedField(null);
   }, [collectionPrefix, iconName]);
+
+  useEffect(() => {
+    if (!nameFormats.some((format) => format.id === selectedFormatId)) {
+      setSelectedFormatId(DEFAULT_FORMAT_ID);
+    }
+  }, [nameFormats, selectedFormatId, setSelectedFormatId]);
 
   if (!iconName || !collection) return null;
 
@@ -137,7 +152,11 @@ export function DetailPanel({
               className="detail-format-select"
               id="detail-format-select"
               value={selectedFormat.id}
-              onChange={(event) => setSelectedFormatId(event.target.value)}
+              onChange={(event) => {
+                if (isNameFormatId(event.target.value)) {
+                  setSelectedFormatId(event.target.value);
+                }
+              }}
             >
               <button className="detail-format-button" type="button">
                 {createElement("selectedcontent")}
@@ -189,4 +208,15 @@ function toPascalCase(value: string) {
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join("");
+}
+
+function isNameFormatId(value: string): value is NameFormatId {
+  return (
+    value === "iconify" ||
+    value === "name" ||
+    value === "component" ||
+    value === "tailwind" ||
+    value === "unocss" ||
+    value === "import"
+  );
 }
