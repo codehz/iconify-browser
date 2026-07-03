@@ -187,6 +187,30 @@
   text-overflow: ellipsis;
 }
 
+.global-search-sentinel {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.global-search-loading-more {
+  font-size: 13px;
+  color: var(--text-secondary);
+  animation: global-search-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes global-search-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @keyframes global-search-shimmer {
   from {
     transform: translateX(-100%);

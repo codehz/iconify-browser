@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GlobalSearchSelection, CollectionItem } from "../types";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
 import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
 import { renderIconHTML } from "../utils/iconRenderer";
 import "./GlobalSearchView.css";
+
+const INITIAL_BATCH = 50;
+const BATCH_SIZE = 50;
 
 interface GlobalSearchViewProps {
   collections: CollectionItem[];
@@ -20,12 +23,51 @@ export function GlobalSearchView({
   onQueryChange,
   onSelectHit,
 }: GlobalSearchViewProps) {
-  const { hits, loading, error } = useGlobalIconSearch(query, 100);
+  const { hits, loading, error, isDebouncing } = useGlobalIconSearch(query);
   const collectionsByPrefix = useMemo(
     () => new Map(collections.map((collection) => [collection.prefix, collection])),
     [collections],
   );
   const trimmedQuery = query.trim();
+  const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasMore = visibleCount < hits.length;
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, hits.length));
+  }, [hits.length]);
+
+  // Reset visible count when search results change
+  useEffect(() => {
+    setVisibleCount(INITIAL_BATCH);
+  }, [hits]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
+
+  // Build status text
+  const statusText = useMemo(() => {
+    if (loading) return "搜索中...";
+    if (isDebouncing) return "输入中...";
+    if (hits.length === 0) return "";
+    const shown = Math.min(visibleCount, hits.length);
+    return `找到 ${hits.length} 个结果` + (shown < hits.length ? `（显示前 ${shown} 个）` : "");
+  }, [loading, isDebouncing, hits.length, visibleCount]);
 
   return (
     <div className="global-search-view">
@@ -48,14 +90,12 @@ export function GlobalSearchView({
         <div className="global-search-status global-search-status-error">{error}</div>
       ) : (
         <>
-          <div className="global-search-status">
-            {loading ? "搜索中..." : `找到 ${hits.length} 个结果`}
-          </div>
+          <div className="global-search-status">{statusText}</div>
           {hits.length === 0 && !loading ? (
             <div className="global-search-empty-state">无匹配图标</div>
           ) : (
             <div className="global-search-grid">
-              {hits.map((hit) => {
+              {hits.slice(0, visibleCount).map((hit) => {
                 const collection = collectionsByPrefix.get(hit.prefix);
                 const selection: GlobalSearchSelection = {
                   kind: "global-search",
@@ -79,6 +119,11 @@ export function GlobalSearchView({
                   />
                 );
               })}
+              {hasMore && (
+                <div ref={sentinelRef} className="global-search-sentinel">
+                  <div className="global-search-loading-more">滚动加载更多...</div>
+                </div>
+              )}
             </div>
           )}
         </>

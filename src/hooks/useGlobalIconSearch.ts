@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
 import { isAbortError, searchIcons } from "../data/iconifyLoader";
 import type { GlobalSearchHit } from "../types";
+import { useDebouncedValue } from "foxact/use-debounced-value";
 
-export function useGlobalIconSearch(query: string, limit = 100) {
+const DEBOUNCE_MS = 300;
+
+export function useGlobalIconSearch(query: string) {
   const [hits, setHits] = useState<GlobalSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const debouncedQuery = useDebouncedValue(query, DEBOUNCE_MS);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    if (!query.trim() || limit <= 0) {
+    if (!debouncedQuery.trim()) {
       setHits([]);
       setLoading(false);
       setError(null);
@@ -20,7 +24,7 @@ export function useGlobalIconSearch(query: string, limit = 100) {
     setLoading(true);
     setError(null);
 
-    searchIcons(query, limit, { signal: controller.signal })
+    searchIcons(debouncedQuery, undefined, { signal: controller.signal })
       .then((nextHits) => {
         setHits(nextHits);
       })
@@ -40,7 +44,7 @@ export function useGlobalIconSearch(query: string, limit = 100) {
     return () => {
       controller.abort();
     };
-  }, [limit, query]);
+  }, [debouncedQuery]);
 
-  return { hits, loading, error };
+  return { hits, loading, error, isDebouncing: query !== debouncedQuery };
 }
