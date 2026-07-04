@@ -61,14 +61,16 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg}"],
         runtimeCaching: [
           {
-            urlPattern: /^\/iconify-data\/index\.json$/,
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname === "/iconify-data/index.json",
             handler: "StaleWhileRevalidate",
             options: {
               cacheName: "iconify-data-index",
             },
           },
           {
-            urlPattern: /^\/iconify-data\/.*\.[0-9a-f]{12}\.json$/,
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && /^\/iconify-data\/.*\.[0-9a-f]{12}\.json$/.test(url.pathname),
             handler: "CacheFirst",
             options: {
               cacheName: "iconify-data-immutable",
