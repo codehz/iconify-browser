@@ -1,0 +1,12 @@
+# Fingerprinted Iconify data can be cached aggressively on Cloudflare Pages.
+/iconify-data/*
+  Cache-Control: public, max-age=31556952, immutable
+
+# Entry files are intentionally mutable and should still revalidate.
+/iconify-data/index.json
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/iconify-data/_meta.json
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
