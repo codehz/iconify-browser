@@ -1,6 +1,6 @@
 export const ICONIFY_DATA_INDEX_CACHE_NAME = "iconify-data-index";
 export const ICONIFY_DATA_IMMUTABLE_CACHE_NAME = "iconify-data-immutable";
-export const ICONIFY_DATA_IMMUTABLE_MAX_ENTRIES = 500;
+export const ICONIFY_DATA_IMMUTABLE_MAX_ENTRIES = 640;
 export const ICONIFY_DATA_IMMUTABLE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const ICONIFY_CACHE_ENCODING_HEADER = "x-iconify-cache-encoding";
 export const ICONIFY_GZIP_ENCODING = "gzip";
