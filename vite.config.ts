@@ -37,6 +37,9 @@ export default defineConfig({
   plugins: lazyPlugins(() => [
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "icons.svg"],
       manifest: {
@@ -57,30 +60,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url, sameOrigin }) =>
-              sameOrigin && url.pathname === "/iconify-data/index.json",
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "iconify-data-index",
-            },
-          },
-          {
-            urlPattern: ({ url, sameOrigin }) =>
-              sameOrigin && /^\/iconify-data\/.*\.[0-9a-f]{12}\.json$/.test(url.pathname),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "iconify-data-immutable",
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-        ],
       },
     }),
   ]),
