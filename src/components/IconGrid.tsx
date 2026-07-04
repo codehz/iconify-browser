@@ -260,63 +260,65 @@ export function IconGrid({
         </div>
       ) : null}
       <SimpleBar ref={igSimpleBarRef} className="icon-grid-body" autoHide={false}>
-        {fullyFilteredNames.length === 0 ? (
-          <div className="icon-grid-empty">{searchQuery ? "无匹配图标" : "暂无图标"}</div>
-        ) : (
-          <div className="icon-grid-virtualizer" ref={setViewportElement}>
-            <div
-              className="icon-grid-virtualizer-inner"
-              style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-            >
-              {virtualRows.map((virtualRow) => {
-                const rowItems = getIconGridRowItems(
-                  fullyFilteredNames,
-                  virtualRow.index,
-                  columnCount,
-                );
+        <div className="icon-grid-content">
+          {fullyFilteredNames.length === 0 ? (
+            <div className="icon-grid-empty">{searchQuery ? "无匹配图标" : "暂无图标"}</div>
+          ) : (
+            <div className="icon-grid-virtualizer" ref={setViewportElement}>
+              <div
+                className="icon-grid-virtualizer-inner"
+                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+              >
+                {virtualRows.map((virtualRow) => {
+                  const rowItems = getIconGridRowItems(
+                    fullyFilteredNames,
+                    virtualRow.index,
+                    columnCount,
+                  );
 
-                return (
-                  <div
-                    key={virtualRow.key}
-                    ref={rowVirtualizer.measureElement}
-                    data-index={virtualRow.index}
-                    className="icon-grid-row"
-                    style={{ transform: `translateY(${virtualRow.start}px)` }}
-                  >
+                  return (
                     <div
-                      className="icon-grid"
-                      style={{
-                        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                      }}
+                      key={virtualRow.key}
+                      ref={rowVirtualizer.measureElement}
+                      data-index={virtualRow.index}
+                      className="icon-grid-row"
+                      style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
-                      {rowItems.map((name) => {
-                        const html = renderIconHTML(collection, name);
-                        if (!html) {
-                          return null;
-                        }
+                      <div
+                        className="icon-grid"
+                        style={{
+                          gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {rowItems.map((name) => {
+                          const html = renderIconHTML(collection, name);
+                          if (!html) {
+                            return null;
+                          }
 
-                        return (
-                          <AriaButton
-                            aria-label={name}
-                            key={name}
-                            className={`icon-grid-item ${selectedIcon === name ? "active" : ""}`}
-                            onPress={() => onSelectIcon(name)}
-                          >
-                            <div
-                              className="icon-grid-icon"
-                              dangerouslySetInnerHTML={{ __html: html }}
-                            />
-                            <span className="icon-grid-label">{name}</span>
-                          </AriaButton>
-                        );
-                      })}
+                          return (
+                            <AriaButton
+                              aria-label={name}
+                              key={name}
+                              className={`icon-grid-item ${selectedIcon === name ? "active" : ""}`}
+                              onPress={() => onSelectIcon(name)}
+                            >
+                              <div
+                                className="icon-grid-icon"
+                                dangerouslySetInnerHTML={{ __html: html }}
+                              />
+                              <span className="icon-grid-label">{name}</span>
+                            </AriaButton>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </SimpleBar>
     </div>
   );

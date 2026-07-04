@@ -307,8 +307,10 @@
   inset: 0;
 }
 
-.global-search-grid .simplebar-content {
+.global-search-grid-content {
   padding: 0 16px 16px;
+  box-sizing: border-box;
+  min-height: 100%;
 }
 
 .global-search-virtual-space {

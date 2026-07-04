@@ -46,8 +46,10 @@
   min-height: 0;
 }
 
-.icon-grid-body .simplebar-content {
+.icon-grid-content {
   padding: 16px;
+  box-sizing: border-box;
+  min-height: 100%;
 }
 
 .icon-grid-virtualizer {
