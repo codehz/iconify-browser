@@ -1,0 +1,63 @@
+name: Update @iconify/json
+
+on:
+  schedule:
+    # UTC 00:00 daily
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-iconify-json
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Record current @iconify/json version
+        id: current
+        run: |
+          version="$(node -p "require('./node_modules/@iconify/json/package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Current @iconify/json: $version"
+
+      - name: Update @iconify/json to latest
+        run: bun add @iconify/json@latest
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet -- package.json bun.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No @iconify/json update available."
+            exit 0
+          fi
+
+          new_version="$(node -p "require('./node_modules/@iconify/json/package.json').version")"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "Updated @iconify/json: ${{ steps.current.outputs.version }} -> $new_version"
+          git diff --stat -- package.json bun.lock
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json bun.lock
+          git commit -m "build(deps): 升级 @iconify/json 至 ${{ steps.changes.outputs.version }}"
+          git push
