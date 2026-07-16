@@ -5,7 +5,7 @@
     "": {
       "name": "iconify-browser",
       "dependencies": {
-        "@iconify/json": "^2.2.499",
+        "@iconify/json": "^2.2.500",
         "@iconify/react": "^6.0.2",
         "@iconify/utils": "^3.1.4",
         "@tanstack/react-virtual": "^3.14.6",
@@ -221,7 +221,7 @@
 
     "@blazediff/core": ["@blazediff/core@1.9.1", "", {}, "sha512-ehg3jIkYKulZh+8om/O25vkvSsXXwC+skXmyA87FFx6A/45eqOkZsBltMw/TVteb0mloiGT8oGRTcjRAz66zaA=="],
 
-    "@iconify/json": ["@iconify/json@2.2.499", "", { "dependencies": { "@iconify/types": "*", "pathe": "^2.0.3" } }, "sha512-O7iaQsaJlu2XN8R0kHUjEPFr8M+fk08o6gV3vwxq1sgkA2UU0OlwDU+n/CzYHPBe7Fh+Gmxvtd9mp//fz/9m/g=="],
+    "@iconify/json": ["@iconify/json@2.2.500", "", { "dependencies": { "@iconify/types": "*", "pathe": "^2.0.3" } }, "sha512-bATR7cvwt8wnN64lYPrd5IJQexowKut76r+TpZnmHnfatLp94TItwzLd5gd3fEC+5HW8TWE7flV7uct6qZaFWA=="],
 
     "@iconify/react": ["@iconify/react@6.0.2", "", { "dependencies": { "@iconify/types": "^2.0.0" }, "peerDependencies": { "react": ">=16" } }, "sha512-SMmC2sactfpJD427WJEDN6PMyznTFMhByK9yLW0gOTtnjzzbsi/Ke/XqsumsavFPwNiXs8jSiYeZTmLCLwO+Fg=="],
 
