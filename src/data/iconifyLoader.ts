@@ -10,17 +10,26 @@ import type {
   GlobalSearchRun,
 } from "../types";
 
+import { LruCache } from "../utils/lruCache";
+
 const DATA_INDEX_URL = "/iconify-data/index.json";
 /** Default cap for global search results to keep UI/main-thread work bounded. */
 export const DEFAULT_GLOBAL_SEARCH_LIMIT = 400;
 /** Yield to the browser event loop after scanning this many name entries. */
 const GLOBAL_SEARCH_YIELD_BATCH = 8_000;
+/** Bound in-memory manifests; less critical than chunks but still unbounded before. */
+const MANIFEST_CACHE_MAX_ENTRIES = 96;
+/**
+ * Bound decoded chunk JSON in the main thread.
+ * Service Worker has its own immutable cache maxEntries (640).
+ */
+const CHUNK_CACHE_MAX_ENTRIES = 256;
 
 let iconifyDataIndexCache: IconifyDataIndex | null = null;
 let iconifyDataIndexPromise: Promise<IconifyDataIndex> | null = null;
-const manifestCache = new Map<string, CollectionManifest>();
+const manifestCache = new LruCache<CollectionManifest>(MANIFEST_CACHE_MAX_ENTRIES);
 const manifestPromiseCache = new Map<string, Promise<CollectionManifest>>();
-const chunkCache = new Map<string, CollectionChunk>();
+const chunkCache = new LruCache<CollectionChunk>(CHUNK_CACHE_MAX_ENTRIES);
 const chunkPromiseCache = new Map<string, Promise<CollectionChunk>>();
 let globalSearchIndexCache: GlobalSearchIndex | null = null;
 let globalSearchIndexPromise: Promise<GlobalSearchIndex> | null = null;
