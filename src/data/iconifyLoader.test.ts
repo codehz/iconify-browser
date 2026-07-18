@@ -447,19 +447,16 @@ describe("iconifyLoader", () => {
     const asyncHits = await searchIcons("ell");
     const emptyHits = await searchIcons("   ");
     const limitedHits = searchGlobalSearchIndex(index, "ell", 1);
-    const prefixHits = searchGlobalSearchIndex(
-      index,
-      "ell",
-      Number.POSITIVE_INFINITY,
-      new Set(["beta"]),
-    );
-    const emptyPrefixHits = await searchIcons("ell", 10, { prefixes: new Set(["missing"]) });
+    const prefixHits = searchGlobalSearchIndex(index, "ell", Number.POSITIVE_INFINITY, ["beta"]);
+    const emptyPrefixHits = await searchIcons("ell", { prefixes: new Set(["missing"]) });
+    const unlimitedHits = await searchIcons("ell", { limit: Number.POSITIVE_INFINITY });
 
     expect(directHits).toEqual([
       { prefix: "alpha", name: "Bell", chunkId: 1, isAlias: false },
       { prefix: "alpha", name: "bell-alt", chunkId: 1, isAlias: true },
     ]);
     expect(asyncHits).toEqual(directHits);
+    expect(unlimitedHits).toEqual(directHits);
     expect(emptyHits).toEqual([]);
     expect(limitedHits).toEqual([{ prefix: "alpha", name: "Bell", chunkId: 1, isAlias: false }]);
     expect(prefixHits).toEqual([]);

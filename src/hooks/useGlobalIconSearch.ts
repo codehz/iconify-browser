@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_GLOBAL_SEARCH_LIMIT, isAbortError, searchIcons } from "../data/iconifyLoader";
+import { isAbortError } from "../data/iconifyLoader";
+import { searchIconsInWorker, warmGlobalSearchWorker } from "../data/globalSearchClient";
 import type { GlobalSearchHit } from "../types";
 import { useDebouncedValue } from "foxact/use-debounced-value";
 
@@ -7,7 +8,6 @@ const DEBOUNCE_MS = 300;
 
 export interface UseGlobalIconSearchOptions {
   prefixes?: Set<string>;
-  limit?: number;
 }
 
 export function useGlobalIconSearch(query: string, options?: UseGlobalIconSearchOptions) {
@@ -15,7 +15,6 @@ export function useGlobalIconSearch(query: string, options?: UseGlobalIconSearch
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debouncedQuery = useDebouncedValue(query, DEBOUNCE_MS);
-  const limit = options?.limit ?? DEFAULT_GLOBAL_SEARCH_LIMIT;
   const prefixes = options?.prefixes;
   const prefixKey = useMemo(() => {
     if (!prefixes || prefixes.size === 0) {
@@ -24,6 +23,10 @@ export function useGlobalIconSearch(query: string, options?: UseGlobalIconSearch
 
     return Array.from(prefixes).sort().join("\0");
   }, [prefixes]);
+
+  useEffect(() => {
+    warmGlobalSearchWorker();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,7 +43,7 @@ export function useGlobalIconSearch(query: string, options?: UseGlobalIconSearch
 
     const prefixFilter = prefixKey.length > 0 ? new Set(prefixKey.split("\0")) : undefined;
 
-    searchIcons(debouncedQuery, limit, {
+    searchIconsInWorker(debouncedQuery, {
       signal: controller.signal,
       prefixes: prefixFilter,
     })
@@ -63,14 +66,12 @@ export function useGlobalIconSearch(query: string, options?: UseGlobalIconSearch
     return () => {
       controller.abort();
     };
-  }, [debouncedQuery, limit, prefixKey]);
+  }, [debouncedQuery, prefixKey]);
 
   return {
     hits,
     loading,
     error,
     isDebouncing: query !== debouncedQuery,
-    limit,
-    isTruncated: hits.length >= limit && hits.length > 0,
   };
 }

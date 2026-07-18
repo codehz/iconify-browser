@@ -13,7 +13,7 @@ import {
 import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { GlobalSearchHit, GlobalSearchSelection, CollectionItem } from "../types";
+import type { GlobalSearchSelection, CollectionItem } from "../types";
 import { AriaTextField } from "./AriaTextField";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
 import {
@@ -73,7 +73,7 @@ export function GlobalSearchView({
   const [filterSearch, setFilterSearch] = useState("");
   const filterSearchInputRef = useRef<HTMLInputElement>(null);
 
-  const { hits, loading, error, isDebouncing, isTruncated } = useGlobalIconSearch(query, {
+  const { hits, loading, error, isDebouncing } = useGlobalIconSearch(query, {
     prefixes: selectedPrefixes.size > 0 ? selectedPrefixes : undefined,
   });
   const collectionsByPrefix = useMemo(
@@ -89,13 +89,7 @@ export function GlobalSearchView({
     return Math.max(1, Math.floor((gridWidth + GRID_GAP) / (CARD_MIN_WIDTH + GRID_GAP)));
   }, [gridWidth]);
 
-  const rows = useMemo(() => {
-    const result: GlobalSearchHit[][] = [];
-    for (let i = 0; i < hits.length; i += columns) {
-      result.push(hits.slice(i, i + columns));
-    }
-    return result;
-  }, [hits, columns]);
+  const rowCount = columns > 0 ? Math.ceil(hits.length / columns) : 0;
 
   const [gsScrollElement, setGsScrollElement] = useState<HTMLElement | null>(null);
 
@@ -106,7 +100,7 @@ export function GlobalSearchView({
   }, []);
 
   const rowVirtualizer = useVirtualizer({
-    count: rows.length,
+    count: rowCount,
     getScrollElement: () => gsScrollElement,
     estimateSize: () => ROW_HEIGHT,
     overscan: 5,
@@ -116,13 +110,16 @@ export function GlobalSearchView({
   const rangeEnd = virtualItems[virtualItems.length - 1]?.index ?? -1;
 
   const visibleChunkKeys = useMemo(() => {
-    if (rangeEnd < rangeStart) {
+    if (rangeEnd < rangeStart || columns <= 0) {
       return [] as SearchHitChunkKey[];
     }
 
     const map = new Map<string, SearchHitChunkKey>();
     for (let rowIndex = rangeStart; rowIndex <= rangeEnd; rowIndex += 1) {
-      for (const hit of rows[rowIndex] ?? []) {
+      const start = rowIndex * columns;
+      const end = Math.min(start + columns, hits.length);
+      for (let index = start; index < end; index += 1) {
+        const hit = hits[index];
         const id = `${hit.prefix}:${hit.chunkId}`;
         if (!map.has(id)) {
           map.set(id, { prefix: hit.prefix, chunkId: hit.chunkId });
@@ -130,7 +127,7 @@ export function GlobalSearchView({
       }
     }
     return Array.from(map.values());
-  }, [rangeEnd, rangeStart, rows]);
+  }, [columns, hits, rangeEnd, rangeStart]);
 
   useEnsureSearchHitChunks(visibleChunkKeys);
 
@@ -138,16 +135,11 @@ export function GlobalSearchView({
     if (loading) return "搜索中...";
     if (isDebouncing) return "输入中...";
     if (hits.length === 0) return "";
-    if (isTruncated) {
-      return selectedPrefixes.size > 0
-        ? `显示前 ${hits.length} 个结果（已截断，已筛选 ${selectedPrefixes.size} 个图标包）`
-        : `显示前 ${hits.length} 个结果（已截断）`;
-    }
     if (selectedPrefixes.size > 0) {
       return `找到 ${hits.length} 个结果（已筛选 ${selectedPrefixes.size} 个图标包）`;
     }
     return `找到 ${hits.length} 个结果`;
-  }, [loading, isDebouncing, hits.length, isTruncated, selectedPrefixes.size]);
+  }, [loading, isDebouncing, hits.length, selectedPrefixes.size]);
 
   const collectionHitCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -343,7 +335,9 @@ export function GlobalSearchView({
                     style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
                   >
                     {virtualItems.map((virtualRow) => {
-                      const rowHits = rows[virtualRow.index];
+                      const start = virtualRow.index * columns;
+                      const end = Math.min(start + columns, hits.length);
+                      const rowHits = hits.slice(start, end);
                       return (
                         <div
                           key={virtualRow.key}

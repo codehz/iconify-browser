@@ -1,22 +1,9 @@
 import type { IconifyJSON } from "@iconify/types";
-import type {
-  CollectionChunk,
-  CollectionManifest,
-  GlobalSearchHit,
-  IconifyDataIndex,
-  GlobalSearchIndex,
-  GlobalSearchIndexEntries,
-  GlobalSearchIndexManifest,
-  GlobalSearchRun,
-} from "../types";
-
+import type { CollectionChunk, CollectionManifest, IconifyDataIndex } from "../types";
+import { resetGlobalSearchCaches } from "./globalSearch";
 import { LruCache } from "../utils/lruCache";
 
 const DATA_INDEX_URL = "/iconify-data/index.json";
-/** Default cap for global search results to keep UI/main-thread work bounded. */
-export const DEFAULT_GLOBAL_SEARCH_LIMIT = 400;
-/** Yield to the browser event loop after scanning this many name entries. */
-const GLOBAL_SEARCH_YIELD_BATCH = 8_000;
 /** Bound in-memory manifests; less critical than chunks but still unbounded before. */
 const MANIFEST_CACHE_MAX_ENTRIES = 96;
 /**
@@ -31,39 +18,9 @@ const manifestCache = new LruCache<CollectionManifest>(MANIFEST_CACHE_MAX_ENTRIE
 const manifestPromiseCache = new Map<string, Promise<CollectionManifest>>();
 const chunkCache = new LruCache<CollectionChunk>(CHUNK_CACHE_MAX_ENTRIES);
 const chunkPromiseCache = new Map<string, Promise<CollectionChunk>>();
-let globalSearchIndexCache: GlobalSearchIndex | null = null;
-let globalSearchIndexPromise: Promise<GlobalSearchIndex> | null = null;
-const loweredNamesCache = new WeakMap<GlobalSearchIndex, string[]>();
 
 interface LoadOptions {
   signal?: AbortSignal;
-}
-
-function getLoweredNames(index: GlobalSearchIndex): string[] {
-  const cached = loweredNamesCache.get(index);
-  if (cached) {
-    return cached;
-  }
-
-  const lowered = index.names.map((name) => name.toLowerCase());
-  loweredNamesCache.set(index, lowered);
-  return lowered;
-}
-
-function yieldToMainThread(): Promise<void> {
-  const schedulerWithYield = (
-    globalThis as typeof globalThis & {
-      scheduler?: { yield?: () => Promise<void> };
-    }
-  ).scheduler;
-
-  if (typeof schedulerWithYield?.yield === "function") {
-    return schedulerWithYield.yield();
-  }
-
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
 }
 
 function isAbortError(error: unknown) {
@@ -270,177 +227,6 @@ export async function loadCollection(prefix: string, options?: LoadOptions): Pro
   return mergeCollection(manifest, chunks);
 }
 
-export async function loadGlobalSearchIndex(options?: LoadOptions): Promise<GlobalSearchIndex> {
-  if (globalSearchIndexCache) {
-    return withAbort(Promise.resolve(globalSearchIndexCache), options?.signal);
-  }
-
-  if (globalSearchIndexPromise) {
-    return withAbort(globalSearchIndexPromise, options?.signal);
-  }
-
-  const promise = (async () => {
-    const dataIndex = await loadIconifyDataIndex();
-    const manifest = await fetchJson<GlobalSearchIndexManifest>(dataIndex.search.manifest.path);
-    assertNotAborted(options?.signal);
-
-    const entries = await fetchJson<GlobalSearchIndexEntries>(
-      `/iconify-data/search/${manifest.entriesFile}`,
-    );
-    assertNotAborted(options?.signal);
-
-    if (!isValidGlobalSearchRuns(entries.names.length, entries.runs, entries.prefixes.length)) {
-      throw new Error("全局搜索索引结构损坏");
-    }
-
-    const index: GlobalSearchIndex = {
-      ...manifest,
-      ...entries,
-    };
-
-    globalSearchIndexPromise = null;
-    globalSearchIndexCache = index;
-    return index;
-  })().catch((error: unknown) => {
-    globalSearchIndexPromise = null;
-    throw error;
-  });
-
-  globalSearchIndexPromise = promise;
-  return withAbort(promise, options?.signal);
-}
-
-export function searchGlobalSearchIndex(
-  index: GlobalSearchIndex,
-  query: string,
-  limit = Number.POSITIVE_INFINITY,
-  prefixes?: Set<string>,
-): GlobalSearchHit[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery || limit <= 0) {
-    return [];
-  }
-
-  const loweredNames = getLoweredNames(index);
-  const hits: GlobalSearchHit[] = [];
-  let runIndex = 0;
-  let currentRun = index.runs[runIndex] ?? null;
-  let currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
-
-  for (let indexOffset = 0; indexOffset < index.names.length; indexOffset += 1) {
-    while (currentRun && indexOffset >= currentRunEnd) {
-      runIndex += 1;
-      currentRun = index.runs[runIndex] ?? null;
-      currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
-    }
-
-    if (!currentRun) {
-      break;
-    }
-
-    if (!loweredNames[indexOffset].includes(normalizedQuery)) {
-      continue;
-    }
-
-    const prefix = index.prefixes[currentRun[2]];
-
-    if (prefixes && !prefixes.has(prefix)) {
-      continue;
-    }
-
-    hits.push({
-      prefix,
-      name: index.names[indexOffset],
-      chunkId: currentRun[3],
-      isAlias: currentRun[4] === 1,
-    });
-
-    if (hits.length >= limit) {
-      break;
-    }
-  }
-
-  return hits;
-}
-
-export async function searchGlobalSearchIndexAsync(
-  index: GlobalSearchIndex,
-  query: string,
-  limit = Number.POSITIVE_INFINITY,
-  prefixes?: Set<string>,
-  signal?: AbortSignal,
-): Promise<GlobalSearchHit[]> {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery || limit <= 0) {
-    return [];
-  }
-
-  assertNotAborted(signal);
-
-  const loweredNames = getLoweredNames(index);
-  const hits: GlobalSearchHit[] = [];
-  let runIndex = 0;
-  let currentRun = index.runs[runIndex] ?? null;
-  let currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
-  let scannedSinceYield = 0;
-
-  for (let indexOffset = 0; indexOffset < index.names.length; indexOffset += 1) {
-    scannedSinceYield += 1;
-    if (scannedSinceYield >= GLOBAL_SEARCH_YIELD_BATCH) {
-      scannedSinceYield = 0;
-      await yieldToMainThread();
-      assertNotAborted(signal);
-    }
-
-    while (currentRun && indexOffset >= currentRunEnd) {
-      runIndex += 1;
-      currentRun = index.runs[runIndex] ?? null;
-      currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
-    }
-
-    if (!currentRun) {
-      break;
-    }
-
-    if (!loweredNames[indexOffset].includes(normalizedQuery)) {
-      continue;
-    }
-
-    const prefix = index.prefixes[currentRun[2]];
-
-    if (prefixes && !prefixes.has(prefix)) {
-      continue;
-    }
-
-    hits.push({
-      prefix,
-      name: index.names[indexOffset],
-      chunkId: currentRun[3],
-      isAlias: currentRun[4] === 1,
-    });
-
-    if (hits.length >= limit) {
-      break;
-    }
-  }
-
-  return hits;
-}
-
-export async function searchIcons(
-  query: string,
-  limit = DEFAULT_GLOBAL_SEARCH_LIMIT,
-  options?: LoadOptions & { prefixes?: Set<string> },
-): Promise<GlobalSearchHit[]> {
-  if (!query.trim() || limit <= 0) {
-    return [];
-  }
-
-  const index = await loadGlobalSearchIndex(options);
-  assertNotAborted(options?.signal);
-  return searchGlobalSearchIndexAsync(index, query, limit, options?.prefixes, options?.signal);
-}
-
 export async function loadIconBySearchHit(
   prefix: string,
   chunkId: number,
@@ -465,34 +251,8 @@ export function resetIconifyLoaderCaches() {
   manifestPromiseCache.clear();
   chunkCache.clear();
   chunkPromiseCache.clear();
-  globalSearchIndexCache = null;
-  globalSearchIndexPromise = null;
+  resetGlobalSearchCaches();
 }
 
 export { isAbortError };
-
-function isValidGlobalSearchRuns(nameCount: number, runs: GlobalSearchRun[], prefixCount: number) {
-  if (nameCount === 0) {
-    return runs.length === 0;
-  }
-
-  let expectedStart = 0;
-  for (const run of runs) {
-    const [start, length, prefixId, chunkId, aliasFlag] = run;
-    if (start !== expectedStart || length <= 0) {
-      return false;
-    }
-
-    if (prefixId < 0 || prefixId >= prefixCount || chunkId < 0) {
-      return false;
-    }
-
-    if (aliasFlag !== 0 && aliasFlag !== 1) {
-      return false;
-    }
-
-    expectedStart += length;
-  }
-
-  return expectedStart === nameCount;
-}
+export { loadGlobalSearchIndex, searchGlobalSearchIndex, searchIcons } from "./globalSearch";
