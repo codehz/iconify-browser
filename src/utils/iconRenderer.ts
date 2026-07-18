@@ -3,6 +3,7 @@ import type { IconifyJSON } from "@iconify/types";
 
 const htmlCache = new WeakMap<IconifyJSON, Map<string, string | null>>();
 const namesCache = new WeakMap<IconifyJSON, string[]>();
+const loweredNamesCache = new WeakMap<IconifyJSON, string[]>();
 
 export function renderIconHTML(collection: IconifyJSON, name: string): string | null {
   const cachedCollection = htmlCache.get(collection);
@@ -42,6 +43,18 @@ export function getIconNames(collection: IconifyJSON): string[] {
   const sorted = Array.from(names).sort();
   namesCache.set(collection, sorted);
   return sorted;
+}
+
+/** Precomputed lowercase names aligned with `getIconNames` for fast filtering. */
+export function getLoweredIconNames(collection: IconifyJSON): string[] {
+  const cached = loweredNamesCache.get(collection);
+  if (cached) {
+    return cached;
+  }
+
+  const lowered = getIconNames(collection).map((name) => name.toLowerCase());
+  loweredNamesCache.set(collection, lowered);
+  return lowered;
 }
 
 function getOrCreateHtmlCache(collection: IconifyJSON) {

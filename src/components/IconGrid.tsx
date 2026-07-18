@@ -14,7 +14,7 @@ import {
   ICON_GRID_ESTIMATED_ROW_HEIGHT,
   ICON_GRID_GAP,
 } from "../utils/iconGridLayout";
-import { renderIconHTML, getIconNames } from "../utils/iconRenderer";
+import { getIconNames, getLoweredIconNames, renderIconHTML } from "../utils/iconRenderer";
 import {
   buildCategoryNameSet,
   buildNameToCategories,
@@ -100,6 +100,7 @@ export function IconGrid({
   }, []);
 
   const allNames = useMemo(() => getIconNames(collection), [collection]);
+  const loweredNames = useMemo(() => getLoweredIconNames(collection), [collection]);
   const suffixEntries = useMemo(() => getCollectionSuffixEntries(collection), [collection]);
   const categoryEntries = useMemo(() => getCollectionCategoryEntries(collection), [collection]);
   const matchSuffix = useMemo(() => createSuffixMatcher(suffixEntries), [suffixEntries]);
@@ -117,13 +118,19 @@ export function IconGrid({
   );
   const nameToCategories = useMemo(() => buildNameToCategories(categoryFilters), [categoryFilters]);
   const searchFilteredNames = useMemo(() => {
-    if (!deferredSearchQuery) {
+    const query = deferredSearchQuery.trim().toLowerCase();
+    if (!query) {
       return allNames;
     }
 
-    const query = deferredSearchQuery.toLowerCase();
-    return allNames.filter((name) => name.toLowerCase().includes(query));
-  }, [allNames, deferredSearchQuery]);
+    const matched: string[] = [];
+    for (let index = 0; index < allNames.length; index += 1) {
+      if (loweredNames[index].includes(query)) {
+        matched.push(allNames[index]);
+      }
+    }
+    return matched;
+  }, [allNames, deferredSearchQuery, loweredNames]);
 
   const suffixCounts = useMemo(
     () => countIconsBySuffix(searchFilteredNames, suffixEntries, matchSuffix),
