@@ -39,6 +39,13 @@ function groupByCategory(collections: CollectionItem[]): CategoryGroup[] {
     });
 }
 
+function emptyStatusMessage(showFavoritesOnly: boolean, hasSearch: boolean): string {
+  if (showFavoritesOnly) {
+    return hasSearch ? "无匹配收藏" : "暂无收藏图标包";
+  }
+  return hasSearch ? "无匹配图标包" : "暂无图标包";
+}
+
 export function Sidebar({
   collections,
   selectedPrefix,
@@ -48,19 +55,27 @@ export function Sidebar({
   onToggleFavorite,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const hasSearch = search.trim().length > 0;
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) {
-      return collections;
+    let list = collections;
+
+    if (showFavoritesOnly) {
+      list = list.filter((collection) => favoriteSet.has(collection.prefix));
     }
 
-    return collections.filter(
+    if (!query) {
+      return list;
+    }
+
+    return list.filter(
       (collection) =>
         collection.name.toLowerCase().includes(query) ||
         collection.prefix.toLowerCase().includes(query),
     );
-  }, [collections, search]);
+  }, [collections, favoriteSet, search, showFavoritesOnly]);
 
   const grouped = useMemo(() => groupByCategory(filtered), [filtered]);
 
@@ -68,7 +83,7 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-title">图标包</span>
-        <span className="sidebar-count">{collections.length}</span>
+        <span className="sidebar-count">{filtered.length}</span>
       </div>
       <div className="sidebar-search">
         <AriaTextField
@@ -78,13 +93,30 @@ export function Sidebar({
           placeholder="筛选图标包"
           value={search}
         />
+        <AriaButton
+          aria-label={showFavoritesOnly ? "显示全部图标包" : "只显示收藏"}
+          aria-pressed={showFavoritesOnly}
+          className={`sidebar-favorite-filter ${showFavoritesOnly ? "active" : ""}`}
+          onPress={() => setShowFavoritesOnly((current) => !current)}
+        >
+          <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path
+              d="M6 1.5L7.47 4.54L10.5 5.03L8.25 7.21L8.82 10.5L6 8.85L3.18 10.5L3.75 7.21L1.5 5.03L4.53 4.54L6 1.5Z"
+              fill={showFavoritesOnly ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </AriaButton>
       </div>
       <ScrollArea className="sidebar-list">
         {loading ? (
           <div className="sidebar-status">加载中...</div>
         ) : filtered.length === 0 ? (
-          <div className="sidebar-status">{search ? "无匹配图标包" : "暂无图标包"}</div>
-        ) : search ? (
+          <div className="sidebar-status">{emptyStatusMessage(showFavoritesOnly, hasSearch)}</div>
+        ) : hasSearch ? (
           filtered.map((col) => (
             <SidebarItem
               key={col.prefix}
