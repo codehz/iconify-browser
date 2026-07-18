@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import type { CollectionItem } from "../types";
 import { AriaTextField } from "./AriaTextField";
@@ -10,7 +10,7 @@ interface SidebarProps {
   selectedPrefix: string | null;
   onSelectCollection: (prefix: string) => void;
   loading: boolean;
-  isFavorite: (prefix: string) => boolean;
+  favoriteSet: ReadonlySet<string>;
   onToggleFavorite: (prefix: string) => void;
 }
 
@@ -44,18 +44,23 @@ export function Sidebar({
   selectedPrefix,
   onSelectCollection,
   loading,
-  isFavorite,
+  favoriteSet,
   onToggleFavorite,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
 
-  const filtered = search
-    ? collections.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.prefix.toLowerCase().includes(search.toLowerCase()),
-      )
-    : collections;
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return collections;
+    }
+
+    return collections.filter(
+      (collection) =>
+        collection.name.toLowerCase().includes(query) ||
+        collection.prefix.toLowerCase().includes(query),
+    );
+  }, [collections, search]);
 
   const grouped = useMemo(() => groupByCategory(filtered), [filtered]);
 
@@ -85,7 +90,7 @@ export function Sidebar({
               key={col.prefix}
               collection={col}
               isActive={selectedPrefix === col.prefix}
-              isFavorite={isFavorite(col.prefix)}
+              isFavorite={favoriteSet.has(col.prefix)}
               onSelect={onSelectCollection}
               onToggleFavorite={onToggleFavorite}
             />
@@ -99,7 +104,7 @@ export function Sidebar({
                   key={col.prefix}
                   collection={col}
                   isActive={selectedPrefix === col.prefix}
-                  isFavorite={isFavorite(col.prefix)}
+                  isFavorite={favoriteSet.has(col.prefix)}
                   onSelect={onSelectCollection}
                   onToggleFavorite={onToggleFavorite}
                 />
@@ -120,7 +125,7 @@ interface SidebarItemProps {
   onToggleFavorite: (prefix: string) => void;
 }
 
-function SidebarItem({
+const SidebarItem = memo(function SidebarItem({
   collection,
   isActive,
   isFavorite: isFav,
@@ -151,4 +156,4 @@ function SidebarItem({
       </AriaButton>
     </div>
   );
-}
+});

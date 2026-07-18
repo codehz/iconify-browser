@@ -46,8 +46,8 @@ function App() {
   const { collections, loading: collectionsLoading } = useCollections();
   const {
     favorites: favoritePrefixes,
+    favoriteSet,
     toggleFavorite: toggleFavoriteCollection,
-    isFavorite,
   } = useFavoriteCollections();
   const {
     data: collectionData,
@@ -281,7 +281,7 @@ function App() {
           selectedPrefix={selectedPrefix}
           onSelectCollection={handleSelectCollection}
           loading={collectionsLoading}
-          isFavorite={isFavorite}
+          favoriteSet={favoriteSet}
           onToggleFavorite={toggleFavoriteCollection}
         />
       )}
