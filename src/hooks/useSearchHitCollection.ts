@@ -1,47 +1,32 @@
-import { useEffect, useState } from "react";
-import type { IconifyJSON } from "@iconify/types";
-import { isAbortError, loadIconBySearchHit } from "../data/iconifyLoader";
+import { useEffect } from "react";
+import { ensureSearchHitChunk, useSearchHitChunk } from "./useSearchHitChunks";
 
+/**
+ * Load a single search-hit chunk for DetailPanel, sharing the same cache/store
+ * used by GlobalSearchView cards so opening detail does not refetch.
+ */
 export function useSearchHitCollection(prefix: string | null, chunkId: number | null) {
-  const [data, setData] = useState<IconifyJSON | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const enabled = Boolean(prefix) && chunkId !== null;
+  const safePrefix = prefix ?? "";
+  const safeChunkId = chunkId ?? -1;
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    if (!prefix || chunkId === null) {
-      setData(null);
-      setLoading(false);
-      setError(null);
+    if (!enabled || !prefix || chunkId === null) {
       return;
     }
 
-    setData(null);
-    setLoading(true);
-    setError(null);
+    ensureSearchHitChunk(prefix, chunkId);
+  }, [chunkId, enabled, prefix]);
 
-    loadIconBySearchHit(prefix, chunkId, { signal: controller.signal })
-      .then((collection) => {
-        setData(collection);
-      })
-      .catch((err) => {
-        if (isAbortError(err)) {
-          return;
-        }
+  const state = useSearchHitChunk(safePrefix, safeChunkId);
 
-        setError(err instanceof Error ? err.message : "加载图标失败");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      });
+  if (!enabled) {
+    return { data: null, loading: false, error: null };
+  }
 
-    return () => {
-      controller.abort();
-    };
-  }, [chunkId, prefix]);
-
-  return { data, loading, error };
+  return {
+    data: state.data,
+    loading: state.loading || (!state.data && !state.error),
+    error: state.error,
+  };
 }
