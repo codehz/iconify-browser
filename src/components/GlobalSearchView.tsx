@@ -17,9 +17,9 @@ import type { GlobalSearchHit, GlobalSearchSelection, CollectionItem } from "../
 import { AriaTextField } from "./AriaTextField";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
 import {
-  useSearchHitChunks,
+  useEnsureSearchHitChunks,
+  useSearchHitChunk,
   type SearchHitChunkKey,
-  type SearchHitChunkState,
 } from "../hooks/useSearchHitChunks";
 import { renderIconHTML } from "../utils/iconRenderer";
 import { useElementWidth } from "../hooks/useElementWidth";
@@ -132,7 +132,7 @@ export function GlobalSearchView({
     return Array.from(map.values());
   }, [rangeEnd, rangeStart, rows]);
 
-  const chunkStore = useSearchHitChunks(visibleChunkKeys);
+  useEnsureSearchHitChunks(visibleChunkKeys);
 
   const statusText = useMemo(() => {
     if (loading) return "搜索中...";
@@ -360,26 +360,20 @@ export function GlobalSearchView({
                         >
                           {rowHits.map((hit) => {
                             const collection = collectionsByPrefix.get(hit.prefix);
-                            const selection: GlobalSearchSelection = {
-                              kind: "global-search",
-                              prefix: hit.prefix,
-                              name: hit.name,
-                              collectionName: collection?.name ?? hit.prefix,
-                              chunkId: hit.chunkId,
-                              isAlias: hit.isAlias,
-                            };
-                            const chunkState = chunkStore.get(hit.prefix, hit.chunkId);
 
                             return (
                               <GlobalSearchCard
                                 key={`${hit.prefix}:${hit.chunkId}:${hit.name}`}
-                                chunkState={chunkState}
+                                chunkId={hit.chunkId}
+                                collectionName={collection?.name ?? hit.prefix}
+                                isAlias={hit.isAlias}
                                 isSelected={
                                   selectedHit?.prefix === hit.prefix &&
                                   selectedHit?.chunkId === hit.chunkId &&
                                   selectedHit?.name === hit.name
                                 }
-                                selection={selection}
+                                name={hit.name}
+                                prefix={hit.prefix}
                                 onSelect={onSelectHit}
                               />
                             );
@@ -399,18 +393,25 @@ export function GlobalSearchView({
 }
 
 interface GlobalSearchCardProps {
-  chunkState: SearchHitChunkState;
+  prefix: string;
+  name: string;
+  chunkId: number;
+  isAlias: boolean;
+  collectionName: string;
   isSelected: boolean;
-  selection: GlobalSearchSelection;
   onSelect: (selection: GlobalSearchSelection) => void;
 }
 
 const GlobalSearchCard = memo(function GlobalSearchCard({
-  chunkState,
+  prefix,
+  name,
+  chunkId,
+  isAlias,
+  collectionName,
   isSelected,
-  selection,
   onSelect,
 }: GlobalSearchCardProps) {
+  const chunkState = useSearchHitChunk(prefix, chunkId);
   const data: IconifyJSON | null = chunkState.data;
   const loading = chunkState.loading || (!chunkState.data && !chunkState.error);
   const error = chunkState.error;
@@ -419,14 +420,25 @@ const GlobalSearchCard = memo(function GlobalSearchCard({
       return null;
     }
 
-    return renderIconHTML(data, selection.name);
-  }, [data, selection.name]);
+    return renderIconHTML(data, name);
+  }, [data, name]);
+
+  const handlePress = useCallback(() => {
+    onSelect({
+      kind: "global-search",
+      prefix,
+      name,
+      collectionName,
+      chunkId,
+      isAlias,
+    });
+  }, [chunkId, collectionName, isAlias, name, onSelect, prefix]);
 
   return (
     <AriaButton
-      aria-label={`${selection.prefix}:${selection.name}`}
+      aria-label={`${prefix}:${name}`}
       className={`global-search-card ${isSelected ? "active" : ""}`}
-      onPress={() => onSelect(selection)}
+      onPress={handlePress}
     >
       <div className="global-search-card-top">
         <div className="global-search-card-preview">
@@ -447,20 +459,20 @@ const GlobalSearchCard = memo(function GlobalSearchCard({
         </div>
         <div className="global-search-card-info">
           <div className="global-search-card-source">
-            <span className="global-search-card-collection" title={selection.collectionName}>
-              {selection.collectionName}
+            <span className="global-search-card-collection" title={collectionName}>
+              {collectionName}
             </span>
           </div>
           <div className="global-search-card-meta">
-            <span className="global-search-card-prefix" title={selection.prefix}>
-              {selection.prefix}
+            <span className="global-search-card-prefix" title={prefix}>
+              {prefix}
             </span>
-            {selection.isAlias ? <span className="global-search-card-alias">Alias</span> : null}
+            {isAlias ? <span className="global-search-card-alias">Alias</span> : null}
           </div>
         </div>
       </div>
-      <span className="global-search-card-name" title={selection.name}>
-        {selection.name}
+      <span className="global-search-card-name" title={name}>
+        {name}
       </span>
     </AriaButton>
   );

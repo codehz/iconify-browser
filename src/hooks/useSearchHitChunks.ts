@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { IconifyJSON } from "@iconify/types";
 import { isAbortError, loadIconBySearchHit } from "../data/iconifyLoader";
 
@@ -19,27 +19,90 @@ const EMPTY_STATE: SearchHitChunkState = {
   error: null,
 };
 
+type Listener = () => void;
+
+const chunkStateCache = new Map<string, SearchHitChunkState>();
+const inflight = new Set<string>();
+const listenersByKey = new Map<string, Set<Listener>>();
+
 function toChunkKey(prefix: string, chunkId: number) {
   return `${prefix}:${chunkId}`;
 }
 
+function getChunkState(key: string): SearchHitChunkState {
+  return chunkStateCache.get(key) ?? EMPTY_STATE;
+}
+
+function setChunkState(key: string, state: SearchHitChunkState) {
+  chunkStateCache.set(key, state);
+  emit(key);
+}
+
+function emit(key: string) {
+  const listeners = listenersByKey.get(key);
+  if (!listeners) {
+    return;
+  }
+
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function subscribe(key: string, listener: Listener) {
+  let listeners = listenersByKey.get(key);
+  if (!listeners) {
+    listeners = new Set();
+    listenersByKey.set(key, listeners);
+  }
+
+  listeners.add(listener);
+  return () => {
+    listeners!.delete(listener);
+    if (listeners!.size === 0) {
+      listenersByKey.delete(key);
+    }
+  };
+}
+
+function ensureChunkLoaded(prefix: string, chunkId: number) {
+  const key = toChunkKey(prefix, chunkId);
+  const current = chunkStateCache.get(key);
+
+  if (current?.data || current?.loading || inflight.has(key)) {
+    return;
+  }
+
+  inflight.add(key);
+  setChunkState(key, { data: null, loading: true, error: null });
+
+  void loadIconBySearchHit(prefix, chunkId)
+    .then((data) => {
+      setChunkState(key, { data, loading: false, error: null });
+    })
+    .catch((err) => {
+      if (isAbortError(err)) {
+        chunkStateCache.delete(key);
+        emit(key);
+        return;
+      }
+
+      setChunkState(key, {
+        data: null,
+        loading: false,
+        error: err instanceof Error ? err.message : "加载图标失败",
+      });
+    })
+    .finally(() => {
+      inflight.delete(key);
+    });
+}
+
 /**
- * Batch-load unique (prefix, chunkId) pairs for the current visible window.
- * Loads are not aborted on range change so scrolling does not thrash network.
+ * Batch-request unique (prefix, chunkId) pairs for the current visible window.
+ * Does not subscribe to state; pair with `useSearchHitChunk` for per-card updates.
  */
-export function useSearchHitChunks(keys: SearchHitChunkKey[]) {
-  const cacheRef = useRef(new Map<string, SearchHitChunkState>());
-  const inflightRef = useRef(new Set<string>());
-  const mountedRef = useRef(true);
-  const [version, setVersion] = useState(0);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
+export function useEnsureSearchHitChunks(keys: SearchHitChunkKey[]) {
   const requestKey = useMemo(() => {
     const ids = new Set<string>();
     for (const key of keys) {
@@ -48,89 +111,43 @@ export function useSearchHitChunks(keys: SearchHitChunkKey[]) {
     return Array.from(ids).sort().join("|");
   }, [keys]);
 
-  const uniqueKeys = useMemo(() => {
-    if (!requestKey) {
-      return [] as SearchHitChunkKey[];
-    }
-
-    return requestKey.split("|").map((id) => {
-      const separator = id.lastIndexOf(":");
-      return {
-        prefix: id.slice(0, separator),
-        chunkId: Number(id.slice(separator + 1)),
-      };
-    });
-  }, [requestKey]);
-
   useEffect(() => {
-    if (uniqueKeys.length === 0) {
+    if (!requestKey) {
       return;
     }
 
-    const cache = cacheRef.current;
-    const inflight = inflightRef.current;
-    const pending = uniqueKeys.filter((key) => {
-      const id = toChunkKey(key.prefix, key.chunkId);
-      if (cache.get(id)?.data) {
-        return false;
-      }
-      if (inflight.has(id)) {
-        return false;
-      }
-      return true;
-    });
-
-    if (pending.length === 0) {
-      return;
+    for (const id of requestKey.split("|")) {
+      const separator = id.lastIndexOf(":");
+      ensureChunkLoaded(id.slice(0, separator), Number(id.slice(separator + 1)));
     }
+  }, [requestKey]);
+}
 
-    for (const key of pending) {
-      const id = toChunkKey(key.prefix, key.chunkId);
-      inflight.add(id);
-      cache.set(id, { data: null, loading: true, error: null });
-    }
-    if (mountedRef.current) {
-      setVersion((value) => value + 1);
-    }
+/** Subscribe to a single search-hit chunk. Only re-renders when that key changes. */
+export function useSearchHitChunk(prefix: string, chunkId: number): SearchHitChunkState {
+  const key = toChunkKey(prefix, chunkId);
 
-    for (const key of pending) {
-      const id = toChunkKey(key.prefix, key.chunkId);
-      void loadIconBySearchHit(key.prefix, key.chunkId)
-        .then((data) => {
-          cache.set(id, { data, loading: false, error: null });
-          if (mountedRef.current) {
-            setVersion((value) => value + 1);
-          }
-        })
-        .catch((err) => {
-          if (isAbortError(err)) {
-            cache.delete(id);
-            return;
-          }
-
-          cache.set(id, {
-            data: null,
-            loading: false,
-            error: err instanceof Error ? err.message : "加载图标失败",
-          });
-          if (mountedRef.current) {
-            setVersion((value) => value + 1);
-          }
-        })
-        .finally(() => {
-          inflight.delete(id);
-        });
-    }
-  }, [requestKey, uniqueKeys]);
-
-  return useMemo(
-    () => ({
-      get(prefix: string, chunkId: number): SearchHitChunkState {
-        return cacheRef.current.get(toChunkKey(prefix, chunkId)) ?? EMPTY_STATE;
-      },
-    }),
-    // version forces consumers to re-read after cache updates
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version],
+  return useSyncExternalStore(
+    (onStoreChange) => subscribe(key, onStoreChange),
+    () => getChunkState(key),
+    () => getChunkState(key),
   );
+}
+
+/** Read a chunk from the shared cache without subscribing. */
+export function getSearchHitChunkState(prefix: string, chunkId: number): SearchHitChunkState {
+  return getChunkState(toChunkKey(prefix, chunkId));
+}
+
+/** Ensure a chunk is loading/loaded and return the current snapshot. */
+export function ensureSearchHitChunk(prefix: string, chunkId: number): SearchHitChunkState {
+  ensureChunkLoaded(prefix, chunkId);
+  return getChunkState(toChunkKey(prefix, chunkId));
+}
+
+/** Test / hot-reload helper. */
+export function resetSearchHitChunkStore() {
+  chunkStateCache.clear();
+  inflight.clear();
+  listenersByKey.clear();
 }
