@@ -446,6 +446,14 @@ describe("iconifyLoader", () => {
     const directHits = searchGlobalSearchIndex(index, "ELL");
     const asyncHits = await searchIcons("ell");
     const emptyHits = await searchIcons("   ");
+    const limitedHits = searchGlobalSearchIndex(index, "ell", 1);
+    const prefixHits = searchGlobalSearchIndex(
+      index,
+      "ell",
+      Number.POSITIVE_INFINITY,
+      new Set(["beta"]),
+    );
+    const emptyPrefixHits = await searchIcons("ell", 10, { prefixes: new Set(["missing"]) });
 
     expect(directHits).toEqual([
       { prefix: "alpha", name: "Bell", chunkId: 1, isAlias: false },
@@ -453,6 +461,9 @@ describe("iconifyLoader", () => {
     ]);
     expect(asyncHits).toEqual(directHits);
     expect(emptyHits).toEqual([]);
+    expect(limitedHits).toEqual([{ prefix: "alpha", name: "Bell", chunkId: 1, isAlias: false }]);
+    expect(prefixHits).toEqual([]);
+    expect(emptyPrefixHits).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

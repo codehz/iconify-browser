@@ -11,6 +11,10 @@ import type {
 } from "../types";
 
 const DATA_INDEX_URL = "/iconify-data/index.json";
+/** Default cap for global search results to keep UI/main-thread work bounded. */
+export const DEFAULT_GLOBAL_SEARCH_LIMIT = 400;
+/** Yield to the browser event loop after scanning this many name entries. */
+const GLOBAL_SEARCH_YIELD_BATCH = 8_000;
 
 let iconifyDataIndexCache: IconifyDataIndex | null = null;
 let iconifyDataIndexPromise: Promise<IconifyDataIndex> | null = null;
@@ -20,9 +24,37 @@ const chunkCache = new Map<string, CollectionChunk>();
 const chunkPromiseCache = new Map<string, Promise<CollectionChunk>>();
 let globalSearchIndexCache: GlobalSearchIndex | null = null;
 let globalSearchIndexPromise: Promise<GlobalSearchIndex> | null = null;
+const loweredNamesCache = new WeakMap<GlobalSearchIndex, string[]>();
 
 interface LoadOptions {
   signal?: AbortSignal;
+}
+
+function getLoweredNames(index: GlobalSearchIndex): string[] {
+  const cached = loweredNamesCache.get(index);
+  if (cached) {
+    return cached;
+  }
+
+  const lowered = index.names.map((name) => name.toLowerCase());
+  loweredNamesCache.set(index, lowered);
+  return lowered;
+}
+
+function yieldToMainThread(): Promise<void> {
+  const schedulerWithYield = (
+    globalThis as typeof globalThis & {
+      scheduler?: { yield?: () => Promise<void> };
+    }
+  ).scheduler;
+
+  if (typeof schedulerWithYield?.yield === "function") {
+    return schedulerWithYield.yield();
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 }
 
 function isAbortError(error: unknown) {
@@ -280,6 +312,7 @@ export function searchGlobalSearchIndex(
     return [];
   }
 
+  const loweredNames = getLoweredNames(index);
   const hits: GlobalSearchHit[] = [];
   let runIndex = 0;
   let currentRun = index.runs[runIndex] ?? null;
@@ -296,7 +329,71 @@ export function searchGlobalSearchIndex(
       break;
     }
 
-    if (!index.names[indexOffset].toLowerCase().includes(normalizedQuery)) {
+    if (!loweredNames[indexOffset].includes(normalizedQuery)) {
+      continue;
+    }
+
+    const prefix = index.prefixes[currentRun[2]];
+
+    if (prefixes && !prefixes.has(prefix)) {
+      continue;
+    }
+
+    hits.push({
+      prefix,
+      name: index.names[indexOffset],
+      chunkId: currentRun[3],
+      isAlias: currentRun[4] === 1,
+    });
+
+    if (hits.length >= limit) {
+      break;
+    }
+  }
+
+  return hits;
+}
+
+export async function searchGlobalSearchIndexAsync(
+  index: GlobalSearchIndex,
+  query: string,
+  limit = Number.POSITIVE_INFINITY,
+  prefixes?: Set<string>,
+  signal?: AbortSignal,
+): Promise<GlobalSearchHit[]> {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery || limit <= 0) {
+    return [];
+  }
+
+  assertNotAborted(signal);
+
+  const loweredNames = getLoweredNames(index);
+  const hits: GlobalSearchHit[] = [];
+  let runIndex = 0;
+  let currentRun = index.runs[runIndex] ?? null;
+  let currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
+  let scannedSinceYield = 0;
+
+  for (let indexOffset = 0; indexOffset < index.names.length; indexOffset += 1) {
+    scannedSinceYield += 1;
+    if (scannedSinceYield >= GLOBAL_SEARCH_YIELD_BATCH) {
+      scannedSinceYield = 0;
+      await yieldToMainThread();
+      assertNotAborted(signal);
+    }
+
+    while (currentRun && indexOffset >= currentRunEnd) {
+      runIndex += 1;
+      currentRun = index.runs[runIndex] ?? null;
+      currentRunEnd = currentRun ? currentRun[0] + currentRun[1] : 0;
+    }
+
+    if (!currentRun) {
+      break;
+    }
+
+    if (!loweredNames[indexOffset].includes(normalizedQuery)) {
       continue;
     }
 
@@ -323,7 +420,7 @@ export function searchGlobalSearchIndex(
 
 export async function searchIcons(
   query: string,
-  limit = Number.POSITIVE_INFINITY,
+  limit = DEFAULT_GLOBAL_SEARCH_LIMIT,
   options?: LoadOptions & { prefixes?: Set<string> },
 ): Promise<GlobalSearchHit[]> {
   if (!query.trim() || limit <= 0) {
@@ -331,7 +428,8 @@ export async function searchIcons(
   }
 
   const index = await loadGlobalSearchIndex(options);
-  return searchGlobalSearchIndex(index, query, limit, options?.prefixes);
+  assertNotAborted(options?.signal);
+  return searchGlobalSearchIndexAsync(index, query, limit, options?.prefixes, options?.signal);
 }
 
 export async function loadIconBySearchHit(

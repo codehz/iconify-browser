@@ -1,6 +1,6 @@
 import { Icon } from "@iconify/react";
-import type { IconifyIcon } from "@iconify/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { IconifyIcon, IconifyJSON } from "@iconify/types";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button as AriaButton,
   ListBox,
@@ -16,7 +16,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { GlobalSearchHit, GlobalSearchSelection, CollectionItem } from "../types";
 import { AriaTextField } from "./AriaTextField";
 import { useGlobalIconSearch } from "../hooks/useGlobalIconSearch";
-import { useSearchHitCollection } from "../hooks/useSearchHitCollection";
+import {
+  useSearchHitChunks,
+  type SearchHitChunkKey,
+  type SearchHitChunkState,
+} from "../hooks/useSearchHitChunks";
 import { renderIconHTML } from "../utils/iconRenderer";
 import { useElementWidth } from "../hooks/useElementWidth";
 import { ScrollArea } from "./ScrollArea";
@@ -69,7 +73,9 @@ export function GlobalSearchView({
   const [filterSearch, setFilterSearch] = useState("");
   const filterSearchInputRef = useRef<HTMLInputElement>(null);
 
-  const { hits: allHits, loading, error, isDebouncing } = useGlobalIconSearch(query);
+  const { hits, loading, error, isDebouncing, isTruncated } = useGlobalIconSearch(query, {
+    prefixes: selectedPrefixes.size > 0 ? selectedPrefixes : undefined,
+  });
   const collectionsByPrefix = useMemo(
     () => new Map(collections.map((collection) => [collection.prefix, collection])),
     [collections],
@@ -77,11 +83,6 @@ export function GlobalSearchView({
   const trimmedQuery = query.trim();
   const gridRef = useRef<HTMLDivElement>(null);
   const gridWidth = useElementWidth(gridRef.current);
-
-  const hits = useMemo(() => {
-    if (selectedPrefixes.size === 0) return allHits;
-    return allHits.filter((hit) => selectedPrefixes.has(hit.prefix));
-  }, [allHits, selectedPrefixes]);
 
   const columns = useMemo(() => {
     if (gridWidth <= 0) return 4;
@@ -110,24 +111,51 @@ export function GlobalSearchView({
     estimateSize: () => ROW_HEIGHT,
     overscan: 5,
   });
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const rangeStart = virtualItems[0]?.index ?? 0;
+  const rangeEnd = virtualItems[virtualItems.length - 1]?.index ?? -1;
+
+  const visibleChunkKeys = useMemo(() => {
+    if (rangeEnd < rangeStart) {
+      return [] as SearchHitChunkKey[];
+    }
+
+    const map = new Map<string, SearchHitChunkKey>();
+    for (let rowIndex = rangeStart; rowIndex <= rangeEnd; rowIndex += 1) {
+      for (const hit of rows[rowIndex] ?? []) {
+        const id = `${hit.prefix}:${hit.chunkId}`;
+        if (!map.has(id)) {
+          map.set(id, { prefix: hit.prefix, chunkId: hit.chunkId });
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [rangeEnd, rangeStart, rows]);
+
+  const chunkStore = useSearchHitChunks(visibleChunkKeys);
 
   const statusText = useMemo(() => {
     if (loading) return "搜索中...";
     if (isDebouncing) return "输入中...";
-    if (allHits.length === 0) return "";
-    if (selectedPrefixes.size > 0) {
-      return `找到 ${allHits.length} 个结果（显示 ${hits.length} 个）`;
+    if (hits.length === 0) return "";
+    if (isTruncated) {
+      return selectedPrefixes.size > 0
+        ? `显示前 ${hits.length} 个结果（已截断，已筛选 ${selectedPrefixes.size} 个图标包）`
+        : `显示前 ${hits.length} 个结果（已截断）`;
     }
-    return `找到 ${allHits.length} 个结果`;
-  }, [loading, isDebouncing, allHits.length, hits.length, selectedPrefixes.size]);
+    if (selectedPrefixes.size > 0) {
+      return `找到 ${hits.length} 个结果（已筛选 ${selectedPrefixes.size} 个图标包）`;
+    }
+    return `找到 ${hits.length} 个结果`;
+  }, [loading, isDebouncing, hits.length, isTruncated, selectedPrefixes.size]);
 
   const collectionHitCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const hit of allHits) {
+    for (const hit of hits) {
       counts.set(hit.prefix, (counts.get(hit.prefix) ?? 0) + 1);
     }
     return counts;
-  }, [allHits]);
+  }, [hits]);
 
   const filteredCollections = useMemo(() => {
     let list = collections
@@ -314,7 +342,7 @@ export function GlobalSearchView({
                     className="global-search-virtual-space"
                     style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
                   >
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    {virtualItems.map((virtualRow) => {
                       const rowHits = rows[virtualRow.index];
                       return (
                         <div
@@ -340,10 +368,12 @@ export function GlobalSearchView({
                               chunkId: hit.chunkId,
                               isAlias: hit.isAlias,
                             };
+                            const chunkState = chunkStore.get(hit.prefix, hit.chunkId);
 
                             return (
                               <GlobalSearchCard
                                 key={`${hit.prefix}:${hit.chunkId}:${hit.name}`}
+                                chunkState={chunkState}
                                 isSelected={
                                   selectedHit?.prefix === hit.prefix &&
                                   selectedHit?.chunkId === hit.chunkId &&
@@ -369,13 +399,21 @@ export function GlobalSearchView({
 }
 
 interface GlobalSearchCardProps {
+  chunkState: SearchHitChunkState;
   isSelected: boolean;
   selection: GlobalSearchSelection;
   onSelect: (selection: GlobalSearchSelection) => void;
 }
 
-function GlobalSearchCard({ isSelected, selection, onSelect }: GlobalSearchCardProps) {
-  const { data, loading, error } = useSearchHitCollection(selection.prefix, selection.chunkId);
+const GlobalSearchCard = memo(function GlobalSearchCard({
+  chunkState,
+  isSelected,
+  selection,
+  onSelect,
+}: GlobalSearchCardProps) {
+  const data: IconifyJSON | null = chunkState.data;
+  const loading = chunkState.loading || (!chunkState.data && !chunkState.error);
+  const error = chunkState.error;
   const iconHtml = useMemo(() => {
     if (!data) {
       return null;
@@ -426,4 +464,4 @@ function GlobalSearchCard({ isSelected, selection, onSelect }: GlobalSearchCardP
       </span>
     </AriaButton>
   );
-}
+});
