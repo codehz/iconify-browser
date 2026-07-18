@@ -51,14 +51,29 @@ function App() {
   } = useFavoriteCollections();
   const {
     data: collectionData,
+    dataPrefix: collectionDataPrefix,
     loading: collectionLoading,
     error: collectionError,
+    isRefreshing: collectionRefreshing,
   } = useCollection(selectedPrefix);
 
   const selectedCollectionInfo = useMemo(
     () => collections.find((collection) => collection.prefix === selectedPrefix) ?? null,
     [collections, selectedPrefix],
   );
+  const displayedCollectionInfo = useMemo(() => {
+    if (!collectionDataPrefix) {
+      return selectedCollectionInfo;
+    }
+
+    return (
+      collections.find((collection) => collection.prefix === collectionDataPrefix) ??
+      selectedCollectionInfo
+    );
+  }, [collectionDataPrefix, collections, selectedCollectionInfo]);
+  const isBrowseCollectionReady =
+    Boolean(collectionData && collectionDataPrefix && displayedCollectionInfo) &&
+    (collectionDataPrefix === selectedPrefix || collectionRefreshing);
   const browseSelection = detailSelection?.kind === "browse" ? detailSelection : null;
   const globalSelection = detailSelection?.kind === "global-search" ? detailSelection : null;
   const isGlobalSearch = activeMainView === "global-search";
@@ -70,6 +85,7 @@ function App() {
     const isActiveBrowseSelection =
       detailSelection.kind === "browse" &&
       detailSelection.prefix === selectedPrefix &&
+      collectionDataPrefix === selectedPrefix &&
       activeMainView === "browse";
 
     return {
@@ -81,6 +97,7 @@ function App() {
   }, [
     activeMainView,
     collectionData,
+    collectionDataPrefix,
     collectionError,
     collectionLoading,
     detailSelection,
@@ -275,27 +292,42 @@ function App() {
               <h1>Iconify Browser</h1>
               <p>从左侧选择一个图标包开始浏览</p>
             </div>
+          ) : collectionError && !isBrowseCollectionReady ? (
+            <div className="welcome error">{collectionError}</div>
+          ) : isBrowseCollectionReady &&
+            collectionData &&
+            collectionDataPrefix &&
+            displayedCollectionInfo ? (
+            <div className="browse-main">
+              <IconGrid
+                collection={collectionData}
+                collectionName={displayedCollectionInfo.name}
+                collectionPrefix={collectionDataPrefix}
+                onSearchQueryChange={setBrowseSearchQuery}
+                onSelectIcon={handleSelectBrowseIcon}
+                onSelectedCategoryChange={setBrowseSelectedCategory}
+                onSelectedSuffixChange={setBrowseSelectedSuffix}
+                searchQuery={browseSearchQuery}
+                selectedCategory={browseSelectedCategory}
+                isDetailSelectionScrollReady={
+                  isBrowseDetailScrollReady && collectionDataPrefix === selectedPrefix
+                }
+                selectedIcon={
+                  browseSelection?.prefix === selectedPrefix &&
+                  collectionDataPrefix === selectedPrefix
+                    ? browseSelection.name
+                    : null
+                }
+                selectedSuffix={browseSelectedSuffix}
+              />
+              {collectionRefreshing ? (
+                <div aria-live="polite" className="browse-loading-overlay">
+                  <div className="browse-loading-card">加载图标包...</div>
+                </div>
+              ) : null}
+            </div>
           ) : collectionLoading ? (
             <div className="welcome">加载图标包...</div>
-          ) : collectionError ? (
-            <div className="welcome error">{collectionError}</div>
-          ) : collectionData && selectedCollectionInfo ? (
-            <IconGrid
-              collection={collectionData}
-              collectionName={selectedCollectionInfo.name}
-              collectionPrefix={selectedPrefix}
-              onSearchQueryChange={setBrowseSearchQuery}
-              onSelectIcon={handleSelectBrowseIcon}
-              onSelectedCategoryChange={setBrowseSelectedCategory}
-              onSelectedSuffixChange={setBrowseSelectedSuffix}
-              searchQuery={browseSearchQuery}
-              selectedCategory={browseSelectedCategory}
-              isDetailSelectionScrollReady={isBrowseDetailScrollReady}
-              selectedIcon={
-                browseSelection?.prefix === selectedPrefix ? browseSelection.name : null
-              }
-              selectedSuffix={browseSelectedSuffix}
-            />
           ) : (
             <div className="welcome error">加载失败</div>
           )

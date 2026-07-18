@@ -2,7 +2,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCategoryNameSet,
+  buildNameToCategories,
+  countIconsByCategory,
   countIconsBySuffix,
+  createSuffixMatcher,
   getCollectionCategoryEntries,
   getCollectionSuffixEntries,
   getIconSuffixKey,
@@ -84,6 +87,43 @@ describe("collectionPreview", () => {
     expect(Array.from(counts.entries())).toEqual([
       ["", 2],
       ["square", 2],
+    ]);
+  });
+
+  it("reuses a precomputed suffix matcher when counting", () => {
+    const suffixEntries: Array<[string, string]> = [
+      ["", "Regular"],
+      ["square", "Square"],
+    ];
+    const matchSuffix = createSuffixMatcher(suffixEntries);
+    const counts = countIconsBySuffix(
+      ["book", "book-square", "news-square", "mail"],
+      suffixEntries,
+      matchSuffix,
+    );
+
+    expect(Array.from(counts.entries())).toEqual([
+      ["", 2],
+      ["square", 2],
+    ]);
+    expect(matchSuffix("book-square")).toBe("square");
+  });
+
+  it("counts icons for each category in a single pass", () => {
+    const categoryFilters = [
+      { category: "Navigation", names: new Set(["home", "user", "user-outline"]) },
+      { category: "Files", names: new Set(["file", "folder"]) },
+    ];
+    const nameToCategories = buildNameToCategories(categoryFilters);
+    const counts = countIconsByCategory(
+      ["home", "user-outline", "folder", "orphan"],
+      categoryFilters,
+      nameToCategories,
+    );
+
+    expect(Array.from(counts.entries())).toEqual([
+      ["Navigation", 2],
+      ["Files", 1],
     ]);
   });
 

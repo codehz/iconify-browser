@@ -4,6 +4,7 @@ import { isAbortError, loadCollection } from "../data/iconifyLoader";
 
 export function useCollection(prefix: string | null) {
   const [data, setData] = useState<IconifyJSON | null>(null);
+  const [dataPrefix, setDataPrefix] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,18 +13,20 @@ export function useCollection(prefix: string | null) {
 
     if (!prefix) {
       setData(null);
+      setDataPrefix(null);
       setLoading(false);
       setError(null);
       return;
     }
 
-    setData(null);
+    // Keep previous collection mounted while the next one loads (D1).
     setLoading(true);
     setError(null);
 
     loadCollection(prefix, { signal: controller.signal })
       .then((collection) => {
         setData(collection);
+        setDataPrefix(prefix);
       })
       .catch((err) => {
         if (isAbortError(err)) {
@@ -43,5 +46,7 @@ export function useCollection(prefix: string | null) {
     };
   }, [prefix]);
 
-  return { data, loading, error };
+  const isRefreshing = Boolean(loading && data && dataPrefix !== prefix);
+
+  return { data, dataPrefix, loading, error, isRefreshing };
 }

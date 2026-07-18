@@ -2,6 +2,7 @@ import { getIconData, iconToSVG, iconToHTML } from "@iconify/utils";
 import type { IconifyJSON } from "@iconify/types";
 
 const htmlCache = new WeakMap<IconifyJSON, Map<string, string | null>>();
+const namesCache = new WeakMap<IconifyJSON, string[]>();
 
 export function renderIconHTML(collection: IconifyJSON, name: string): string | null {
   const cachedCollection = htmlCache.get(collection);
@@ -27,13 +28,20 @@ export function renderIconHTML(collection: IconifyJSON, name: string): string | 
 }
 
 export function getIconNames(collection: IconifyJSON): string[] {
+  const cached = namesCache.get(collection);
+  if (cached) {
+    return cached;
+  }
+
   const names = new Set(Object.keys(collection.icons));
 
   for (const alias of Object.keys(collection.aliases ?? {})) {
     names.add(alias);
   }
 
-  return Array.from(names).sort();
+  const sorted = Array.from(names).sort();
+  namesCache.set(collection, sorted);
+  return sorted;
 }
 
 function getOrCreateHtmlCache(collection: IconifyJSON) {

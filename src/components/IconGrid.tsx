@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import SimpleBar from "simplebar-react";
 import type SimpleBarCore from "simplebar-core";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -17,10 +17,12 @@ import {
 import { renderIconHTML, getIconNames } from "../utils/iconRenderer";
 import {
   buildCategoryNameSet,
+  buildNameToCategories,
+  countIconsByCategory,
   countIconsBySuffix,
+  createSuffixMatcher,
   getCollectionCategoryEntries,
   getCollectionSuffixEntries,
-  getIconSuffixKey,
 } from "../utils/collectionPreview";
 import "./IconGrid.css";
 import { useRetimer } from "foxact/use-retimer";
@@ -48,6 +50,31 @@ interface CategoryOption extends AriaSelectOption<string> {
 const ALL_CATEGORIES_ID = "__all__";
 const DEFAULT_SUFFIX_TAG_ID = "__default__";
 
+interface IconGridItemProps {
+  name: string;
+  html: string;
+  isActive: boolean;
+  onSelect: (name: string) => void;
+}
+
+const IconGridItem = memo(function IconGridItem({
+  name,
+  html,
+  isActive,
+  onSelect,
+}: IconGridItemProps) {
+  return (
+    <AriaButton
+      aria-label={name}
+      className={`icon-grid-item ${isActive ? "active" : ""}`}
+      onPress={() => onSelect(name)}
+    >
+      <div className="icon-grid-icon" dangerouslySetInnerHTML={{ __html: html }} />
+      <span className="icon-grid-label">{name}</span>
+    </AriaButton>
+  );
+});
+
 export function IconGrid({
   collection,
   collectionName,
@@ -64,6 +91,7 @@ export function IconGrid({
 }: IconGridProps) {
   const [igScrollElement, setIgScrollElement] = useState<HTMLElement | null>(null);
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const igSimpleBarRef = useCallback((instance: SimpleBarCore | null) => {
     if (instance) {
@@ -74,6 +102,7 @@ export function IconGrid({
   const allNames = useMemo(() => getIconNames(collection), [collection]);
   const suffixEntries = useMemo(() => getCollectionSuffixEntries(collection), [collection]);
   const categoryEntries = useMemo(() => getCollectionCategoryEntries(collection), [collection]);
+  const matchSuffix = useMemo(() => createSuffixMatcher(suffixEntries), [suffixEntries]);
   const supportsSuffixPreview = suffixEntries.length > 0;
   const supportsCategoryPreview = categoryEntries.length > 0;
   const viewportWidth = useElementWidth(viewportElement);
@@ -86,37 +115,30 @@ export function IconGrid({
       })),
     [categoryEntries, collection.aliases],
   );
+  const nameToCategories = useMemo(() => buildNameToCategories(categoryFilters), [categoryFilters]);
   const searchFilteredNames = useMemo(() => {
-    if (!searchQuery) {
+    if (!deferredSearchQuery) {
       return allNames;
     }
 
-    const query = searchQuery.toLowerCase();
+    const query = deferredSearchQuery.toLowerCase();
     return allNames.filter((name) => name.toLowerCase().includes(query));
-  }, [allNames, searchQuery]);
+  }, [allNames, deferredSearchQuery]);
 
   const suffixCounts = useMemo(
-    () => countIconsBySuffix(searchFilteredNames, suffixEntries),
-    [searchFilteredNames, suffixEntries],
+    () => countIconsBySuffix(searchFilteredNames, suffixEntries, matchSuffix),
+    [matchSuffix, searchFilteredNames, suffixEntries],
   );
   const filteredNames = useMemo(() => {
     if (selectedSuffix === null) {
       return searchFilteredNames;
     }
 
-    return searchFilteredNames.filter(
-      (name) => getIconSuffixKey(name, suffixEntries) === selectedSuffix,
-    );
-  }, [searchFilteredNames, selectedSuffix, suffixEntries]);
+    return searchFilteredNames.filter((name) => matchSuffix(name) === selectedSuffix);
+  }, [matchSuffix, searchFilteredNames, selectedSuffix]);
   const categoryCounts = useMemo(
-    () =>
-      new Map(
-        categoryFilters.map((filter) => [
-          filter.category,
-          filteredNames.filter((name) => filter.names.has(name)).length,
-        ]),
-      ),
-    [categoryFilters, filteredNames],
+    () => countIconsByCategory(filteredNames, categoryFilters, nameToCategories),
+    [categoryFilters, filteredNames, nameToCategories],
   );
   const categoryOptions = useMemo<CategoryOption[]>(
     () => [
@@ -147,6 +169,13 @@ export function IconGrid({
 
     return filteredNames.filter((name) => categoryFilter.names.has(name));
   }, [categoryFilters, filteredNames, selectedCategory]);
+  const nameIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (let index = 0; index < fullyFilteredNames.length; index += 1) {
+      map.set(fullyFilteredNames[index], index);
+    }
+    return map;
+  }, [fullyFilteredNames]);
   const rowCount = useMemo(
     () => getIconGridRowCount(fullyFilteredNames.length, columnCount),
     [columnCount, fullyFilteredNames.length],
@@ -168,8 +197,8 @@ export function IconGrid({
       return;
     }
 
-    const iconIndex = fullyFilteredNames.indexOf(selectedIcon);
-    if (iconIndex === -1) {
+    const iconIndex = nameIndexMap.get(selectedIcon);
+    if (iconIndex === undefined) {
       return;
     }
 
@@ -183,7 +212,8 @@ export function IconGrid({
   }, [
     selectedIcon,
     isDetailSelectionScrollReady,
-    fullyFilteredNames,
+    nameIndexMap,
+    fullyFilteredNames.length,
     columnCount,
     rowVirtualizer,
     retimer,
@@ -191,7 +221,7 @@ export function IconGrid({
 
   useEffect(() => {
     igScrollElement?.scrollTo({ top: 0 });
-  }, [collectionPrefix, igScrollElement, searchQuery, selectedCategory, selectedSuffix]);
+  }, [collectionPrefix, igScrollElement, deferredSearchQuery, selectedCategory, selectedSuffix]);
 
   return (
     <div className="icon-grid-container">
@@ -262,7 +292,9 @@ export function IconGrid({
       <SimpleBar ref={igSimpleBarRef} className="icon-grid-body" autoHide={false}>
         <div className="icon-grid-content">
           {fullyFilteredNames.length === 0 ? (
-            <div className="icon-grid-empty">{searchQuery ? "无匹配图标" : "暂无图标"}</div>
+            <div className="icon-grid-empty">
+              {deferredSearchQuery || searchQuery ? "无匹配图标" : "暂无图标"}
+            </div>
           ) : (
             <div className="icon-grid-virtualizer" ref={setViewportElement}>
               <div
@@ -297,18 +329,13 @@ export function IconGrid({
                           }
 
                           return (
-                            <AriaButton
-                              aria-label={name}
+                            <IconGridItem
                               key={name}
-                              className={`icon-grid-item ${selectedIcon === name ? "active" : ""}`}
-                              onPress={() => onSelectIcon(name)}
-                            >
-                              <div
-                                className="icon-grid-icon"
-                                dangerouslySetInnerHTML={{ __html: html }}
-                              />
-                              <span className="icon-grid-label">{name}</span>
-                            </AriaButton>
+                              html={html}
+                              isActive={selectedIcon === name}
+                              name={name}
+                              onSelect={onSelectIcon}
+                            />
                           );
                         })}
                       </div>

@@ -18,30 +18,41 @@ function getMatchingSuffix(name: string, suffixes: string[]) {
   return null;
 }
 
-export function getIconSuffixKey(
-  name: string,
-  suffixEntries: Array<[string, string]>,
-): string | null {
+export type SuffixMatcher = (name: string) => string | null;
+
+/** Precompute ordered suffixes once; avoids re-sorting per icon name. */
+export function createSuffixMatcher(suffixEntries: Array<[string, string]>): SuffixMatcher {
   if (suffixEntries.length === 0) {
-    return null;
+    return () => null;
   }
 
   const orderedSuffixes = suffixEntries
     .map(([suffix]) => suffix)
     .filter((suffix) => suffix.length > 0)
     .sort((left, right) => right.length - left.length);
-  const matchedSuffix = getMatchingSuffix(name, orderedSuffixes);
+  const hasDefault = suffixEntries.some(([suffix]) => suffix === "");
 
-  if (matchedSuffix) {
-    return matchedSuffix;
-  }
+  return (name: string) => {
+    const matchedSuffix = getMatchingSuffix(name, orderedSuffixes);
+    if (matchedSuffix) {
+      return matchedSuffix;
+    }
 
-  return suffixEntries.some(([suffix]) => suffix === "") ? "" : null;
+    return hasDefault ? "" : null;
+  };
+}
+
+export function getIconSuffixKey(
+  name: string,
+  suffixEntries: Array<[string, string]>,
+): string | null {
+  return createSuffixMatcher(suffixEntries)(name);
 }
 
 export function countIconsBySuffix(
   names: string[],
   suffixEntries: Array<[string, string]>,
+  matchSuffix: SuffixMatcher = createSuffixMatcher(suffixEntries),
 ): Map<string, number> {
   const counts = new Map<string, number>();
 
@@ -50,12 +61,63 @@ export function countIconsBySuffix(
   }
 
   for (const name of names) {
-    const suffix = getIconSuffixKey(name, suffixEntries);
+    const suffix = matchSuffix(name);
     if (suffix === null) {
       continue;
     }
 
     counts.set(suffix, (counts.get(suffix) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+export interface CategoryFilter {
+  category: string;
+  names: Set<string>;
+}
+
+/** Reverse index: icon name → categories it belongs to. Built once per collection. */
+export function buildNameToCategories(
+  categoryFilters: Array<CategoryFilter>,
+): Map<string, string[]> {
+  const nameToCategories = new Map<string, string[]>();
+
+  for (const filter of categoryFilters) {
+    for (const name of filter.names) {
+      const existing = nameToCategories.get(name);
+      if (existing) {
+        existing.push(filter.category);
+      } else {
+        nameToCategories.set(name, [filter.category]);
+      }
+    }
+  }
+
+  return nameToCategories;
+}
+
+/** Single pass over names using reverse index — O(names × categories-per-name). */
+export function countIconsByCategory(
+  names: string[],
+  categoryFilters: Array<CategoryFilter>,
+  nameToCategories: Map<string, string[]> = buildNameToCategories(categoryFilters),
+): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const filter of categoryFilters) {
+    counts.set(filter.category, 0);
+  }
+
+  for (const name of names) {
+    const categories = nameToCategories.get(name);
+    if (!categories) {
+      continue;
+    }
+
+    for (const category of categories) {
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
   }
 
   return counts;

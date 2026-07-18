@@ -19,6 +19,38 @@
   background: var(--bg-primary);
 }
 
+.browse-main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.browse-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 72px;
+  background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+  /* Block clicks on the stale grid while the next collection loads. */
+  pointer-events: auto;
+}
+
+.browse-loading-card {
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, black);
+  color: var(--text-secondary);
+  font-size: var(--control-font);
+  box-shadow: 0 8px 24px color-mix(in srgb, black 28%, transparent);
+}
+
 .detail-panel-shell {
   grid-column: 1 / -1;
   position: relative;
