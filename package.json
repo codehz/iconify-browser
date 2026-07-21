@@ -11,7 +11,7 @@
     "prepare": "vp config"
   },
   "dependencies": {
-    "@iconify/json": "^2.2.502",
+    "@iconify/json": "^2.2.503",
     "@iconify/react": "^6.0.2",
     "@iconify/utils": "^3.1.4",
     "@tanstack/react-virtual": "^3.14.6",
